@@ -159,12 +159,13 @@ A phased build-out of homelab services and smart home infrastructure using exist
 **Smart home north star:** Home Assistant as the hub for everything. Lutron Caseta, Zigbee devices, and eventually Z-wave all feeding into it. Meross WiFi plugs to be replaced with Zigbee/Z-wave over time. Nest thermostat to be replaced (decision TBD).
 
 **DNS/networking plan:**
-- Stand up fresh PiHole v6 + Unbound on a Pi 3B
-- Validate it, then rebuild Pi 4 as second PiHole v6 node
-- Use Keepalived for failover, Gravity Sync for config mirroring
-- Don't touch the working Pi 4 PiHole v5 until replacement is ready
+- Pi 3B: PiHole v6 + Unbound primary — live ✓
+- Pi 4: PiHole v6 + Unbound replica — live ✓
+- Nebula Sync (Docker on Pi 3B): hourly primary → replica config sync — live ✓
+- Keepalived: DNS failover via shared virtual IP — next step
+- Note: always make blocklist/config changes on primary (192.168.1.129) — Nebula Sync is one-directional
 
-**Status:** Planning complete. Hardware inventoried. Ready to start on PiHole migration or Home Assistant install as separate focused chats.
+**Status:** Both PiHole nodes live. Nebula Sync syncing hourly. Keepalived is the remaining step for full failover.
 
 ---
 
