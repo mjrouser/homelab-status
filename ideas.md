@@ -7,6 +7,28 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## "What Now?" — Decision Fatigue App
+*Added: 2026-04-02*
+
+A mobile-first app to help Matthew and his wife cut through decision fatigue at the end of the day. Three use cases, to be built one at a time.
+
+**Use case 1: What to watch** (first to build)
+You describe your mood ("spy thriller," "cozy British mystery," "something funny") and the app asks a question or two, then returns a short list of suggestions pulled from your actual watchlist. The core value is **mood matching** — not just a random picker, but something that understands what you're in the mood for tonight.
+
+**Watchlist source:** Streaming service API sync (not manual entry). Volume of content makes manual maintenance too burdensome, and a future feature — "is this show on one of my services, and can I add it?" — requires real integration to work. This is a first-class requirement, not a nice-to-have.
+
+**Use case 2: Where to eat** (second)
+Same mood-matching flow, applied to restaurants.
+
+**Use case 3: What to make for dinner** (third)
+Same flow, applied to home cooking / meal options.
+
+**Status:** Concept defined, use cases sequenced. Ready to spec use case 1 in detail and begin BRD development.
+
+**Next step:** When picking this back up, start by speccing the TV use case — user flow, mood-matching mechanic, streaming API candidates (JustWatch API or service-specific), and MVP scope. Note: major streaming services don't have public watchlist APIs — JustWatch aggregation is the likely path, worth researching before committing to an approach.
+
+---
+
 ## Dead & Phish Time Machine — Gift Box
 *Added: 2026-03-15*
 
