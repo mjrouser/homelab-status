@@ -7,6 +7,19 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## IPv6 Virtual IP for PiHole / Keepalived
+*Added: 2026-04-03*
+
+IPv6 DNS is working but there is no IPv6 VIP configured. The IPv4 redundancy setup (Keepalived VIP 192.168.1.2) has no IPv6 equivalent — clients using IPv6 DNS are hitting individual node addresses directly rather than a shared virtual IP.
+
+**What's needed:** A dedicated session covering Keepalived IPv6 VIP configuration and Unifi DHCPv6/SLAAC DNS settings. The complication is ISP dynamic IPv6 prefix behavior — the prefix may change, which affects how a stable VIP can be assigned and whether ULA (Unique Local Address) prefixes are a better fit than GUA (Global Unicast) for internal VIP use.
+
+**Depends on:** Understanding the ISP's IPv6 prefix assignment behavior before committing to an approach.
+
+**Status:** Not started. Low urgency — IPv6 DNS works, just not redundant.
+
+---
+
 ## "What Now?" — Decision Fatigue App
 *Added: 2026-04-02*
 
@@ -184,10 +197,11 @@ A phased build-out of homelab services and smart home infrastructure using exist
 - Pi 3B: PiHole v6 + Unbound primary — live ✓
 - Pi 4: PiHole v6 + Unbound replica — live ✓
 - Nebula Sync (Docker on Pi 3B): hourly primary → replica config sync — live ✓
-- Keepalived: DNS failover via shared virtual IP — next step
+- Keepalived: VIP 192.168.1.2 configured, failover tested and confirmed ✓
+- Unifi DNS updated to VIP on main VLAN and IoT VLAN ✓
 - Note: always make blocklist/config changes on primary (192.168.1.129) — Nebula Sync is one-directional
 
-**Status:** Both PiHole nodes live. Nebula Sync syncing hourly. Keepalived is the remaining step for full failover.
+**Status:** Fully complete and operational. IPv6 VIP not yet configured — see separate entry below.
 
 ---
 

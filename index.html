@@ -243,7 +243,7 @@
 
   <header>
     <h1>Homelab status</h1>
-    <time datetime="2026-04-02">2026-04-02</time>
+    <time datetime="2026-04-03">2026-04-03</time>
   </header>
 
   <!-- ======================================================
@@ -302,13 +302,16 @@
         <div class="check-item"><span class="check-dot"></span>Primary (Pi 3B, 192.168.1.129): PiHole v6 + Unbound, multi-VLAN</div>
         <div class="check-item"><span class="check-dot"></span>Replica (Pi 4, 192.168.1.13): PiHole v6 + Unbound fully provisioned</div>
         <div class="check-item"><span class="check-dot"></span>Nebula Sync on Pi 3B — hourly primary → replica sync confirmed</div>
+        <div class="check-item"><span class="check-dot"></span>Keepalived configured on both nodes — VIP 192.168.1.2, failover tested</div>
+        <div class="check-item"><span class="check-dot"></span>Unifi DNS updated to VIP on main VLAN and IoT VLAN</div>
       </div>
-      <p class="card-next"><strong>Next:</strong> Install and configure Keepalived on both nodes for DNS failover via shared virtual IP</p>
+      <p class="card-next"><strong>Next:</strong> Fully operational — IPv6 VIP not yet configured (see ideas for details)</p>
       <div class="pill-row">
         <span class="pill">Pi 3B — primary</span>
         <span class="pill">Pi 4 — replica</span>
+        <span class="pill">VIP 192.168.1.2</span>
         <span class="pill">Nebula Sync</span>
-        <span class="pill">Keepalived pending</span>
+        <span class="pill">Keepalived</span>
       </div>
     </div>
   </section>
