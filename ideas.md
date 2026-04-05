@@ -7,6 +7,17 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## PiHole — Top Clients Hostname Resolution
+*Added: 2026-04-04*
+
+The top clients list in the PiHole dashboard shows raw IP addresses instead of hostnames or friendly client names, making it hard to tell which device is which at a glance.
+
+**What's needed:** Configure PiHole to resolve client IPs to hostnames — either via local DNS entries, DHCP hostnames from the router, or manually defined client names in the PiHole admin UI. Unifi should be able to push DHCP hostnames; worth checking whether PiHole can pick those up automatically or if they need to be added manually.
+
+**Status:** Not started. Low urgency — cosmetic/usability improvement.
+
+---
+
 ## IPv6 Virtual IP for PiHole / Keepalived
 *Added: 2026-04-03*
 
