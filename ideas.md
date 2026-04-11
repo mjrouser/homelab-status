@@ -66,6 +66,11 @@ A physical box for a Grateful Dead/Phish superfan: set a date with knobs (day/mo
 
 **Reference:** https://eichblatt.github.io/deadstream/ | https://eichblatt.github.io/deadstream/BuildYourOwn
 
+### Version 2 / Future Ideas
+
+**Sonos streaming via Icecast**
+The deadbox could expose its current stream as a local HTTP audio stream using Icecast, making it available to Sonos as a custom radio source. Flow: archive.org → Pi (deadstream) → Icecast → Sonos (custom radio URL). This sidesteps Sonos's proprietary source discovery protocol entirely. The DAC+ Pro handles local audio; Icecast handles network broadcast. No hardware changes required — pure software addition deployable via SSH post-gifting.
+
 ---
 
 ## IoT VLAN Firewall Rules
