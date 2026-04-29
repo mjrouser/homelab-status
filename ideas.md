@@ -62,7 +62,18 @@ A physical box for a Grateful Dead/Phish superfan: set a date with knobs (day/mo
 
 **Hardware candidates:** Pi 3B + HiFiBerry DAC+ Pro. Rotary encoders for date selection. Small display for showing the show date/venue.
 
-**Status:** Priority project. Target: ready before April 17th. Research deadstream build instructions before any hardware decisions.
+**Status:** Active build. Display wired, bench test setup complete. Next step: flash SD card with Raspberry Pi OS Lite.
+
+**Target:** Ship by June 1st (housewarming gift).
+
+**Session cadence:** ~2 sessions/week, 1–2 hours each.
+
+**Work plan:**
+- Week 1: Flash SD card, boot Pi OS, confirm display renders, verify DAC+ audio
+- Week 2: Wire and test controls — encoders and buttons per PINOUT.md, confirm each input registers
+- Week 3: Install deadstream and dependencies, full end-to-end test — pick a date, stream a show, display working
+- Week 4: Box work and assembly — cut display window, encoder/button holes, RCA jack holes; test fit before final mounting; final assembly and wiring in box
+- Week 5 (buffer): Burn-in test, catch any issues, ship by June 1st
 
 **Reference:** https://eichblatt.github.io/deadstream/ | https://eichblatt.github.io/deadstream/BuildYourOwn
 
