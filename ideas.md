@@ -226,6 +226,7 @@ A phased build-out of homelab services and smart home infrastructure using exist
 - Nebula Sync (Docker on Pi 3B): hourly primary → replica config sync — live ✓
 - Keepalived: VIP 192.168.1.2 configured, failover tested and confirmed ✓
 - Unifi DNS updated to VIP on main VLAN and IoT VLAN ✓
+- PiHole pause tool: single-page HTML app served by Python/systemd on Pi 3B at http://192.168.1.129:8080, pauses both nodes simultaneously with configurable duration (1/5/10/30 min) and Resume Now button ✓
 - Note: always make blocklist/config changes on primary (192.168.1.129) — Nebula Sync is one-directional
 
 **Status:** Fully complete and operational. IPv6 VIP not yet configured — see separate entry below.
