@@ -243,7 +243,7 @@
 
   <header>
     <h1>Homelab status</h1>
-    <time datetime="2026-05-05">2026-05-05</time>
+    <time datetime="2026-05-30">2026-05-30</time>
   </header>
 
   <!-- ======================================================
@@ -411,6 +411,23 @@
       <p class="card-next"><strong>Next:</strong> Define scope and tech stack</p>
       <div class="pill-row">
         <span class="pill">web dev</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-top">
+        <span class="card-title">Network switch upgrade — multi-gig</span>
+        <span class="badge badge-queued">Queued</span>
+      </div>
+      <div class="check-row">
+        <div class="check-item"><span class="check-dot"></span>Inventory complete — 10 devices, unifi_inventory.py in homelab-status repo</div>
+        <div class="check-item"><span class="check-dot"></span>Bottleneck identified: Trunk Switch (US16P150) is 1G-only; CGF already has 10G SFP+</div>
+      </div>
+      <p class="card-next"><strong>Next:</strong> Wait for NAS purchase or ISP upgrade past 1G — then replace Trunk Switch with USW Pro Max 16 (2.5G ports, 10G SFP+ uplink to CGF)</p>
+      <div class="pill-row">
+        <span class="pill">US16P150 → USW Pro Max 16</span>
+        <span class="pill">CGF has 10G SFP+ ready</span>
+        <span class="pill">waiting on NAS or ISP trigger</span>
       </div>
     </div>
 

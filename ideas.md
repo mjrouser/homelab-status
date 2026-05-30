@@ -7,6 +7,21 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## Network Switch Upgrade — Multi-Gig
+*Added: 2026-05-30*
+
+Full device inventory pulled via UniFi API (script: `unifi_inventory.py` in this repo). Network has 10 devices: Cloud Gateway Fiber, Trunk Switch (US16P150, 16-port PoE), 4x USW Flex Minis, 3x APs, and a USP Plug.
+
+**Bottleneck:** Trunk Switch (US16P150) is 1G-only. The CGF already has a 10G SFP+ port available for LAN uplink. The 4 Flex Minis are fine for now — edge switches serving workstations, APs, and consumer devices.
+
+**Trigger conditions (either one):**
+- NAS purchase — local transfer speed becomes meaningful
+- ISP upgrade past 1G — 2.5G fiber is available in the area
+
+**Recommended upgrade when triggered:** Replace US16P150 with **USW Pro Max 16** (~$400–500). Gives 16x 2.5G PoE ports and 2x 10G SFP+ uplinks. Connect to CGF via SFP+ DAC cable. Flex Minis stay as-is unless specific workstations need 2.5G (unlikely without a NAS).
+
+**No action needed now** — current 1G setup matches 1G WAN and no local high-speed transfer workloads.
+
 ## PiHole — Top Clients Hostname Resolution
 *Added: 2026-04-04*
 
