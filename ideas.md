@@ -7,6 +7,19 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## Tailscale — homelab mesh VPN
+
+*Captured June 1, 2026*
+
+Set up Tailscale (WireGuard-based mesh VPN) for secure remote access to the homelab without port forwarding or firewall changes. Worth exploring for:
+
+- Remote access to the Pi fleet, PiHole admin, and dashboards from anywhere
+- Using PiHole as the tailnet DNS server → ad-blocking on every device, everywhere, including cellular
+- Subnet routing to reach the whole LAN through one node
+- Low setup overhead: single binary per device, free tier covers a personal homelab
+
+---
+
 ## Network Switch Upgrade — Multi-Gig
 *Added: 2026-05-30*
 
