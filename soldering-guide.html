@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<!-- HiFiBerry DAC+ Pro header replacement guide — interactive checklist with SVG diagrams -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HiFiBerry DAC+ Pro — Header Replacement Guide</title>
+<style>
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface2: #f3f1ee;
+  --border: rgba(0,0,0,0.1);
+  --border-strong: rgba(0,0,0,0.18);
+  --text: #1a1a18;
+  --text2: #5a5955;
+  --text3: #9a9890;
+  --warn: #712b13;
+  --warn-bg: #faece7;
+  --warn-border: rgba(113,43,19,0.2);
+  --ok: #275009;
+  --ok-bg: #eaf3de;
+  --accent: #2d5fa6;
+  --green: #639922;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: 'DM Mono', ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111110;
+    --surface: #1c1c1a;
+    --surface2: #242422;
+    --border: rgba(255,255,255,0.09);
+    --border-strong: rgba(255,255,255,0.16);
+    --text: #e8e6e0;
+    --text2: #9a9890;
+    --text3: #5a5955;
+    --warn: #f09970;
+    --warn-bg: #3a1208;
+    --warn-border: rgba(240,153,112,0.2);
+    --ok: #8fc053;
+    --ok-bg: #152a04;
+    --accent: #7aabf0;
+    --green: #7ab832;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 2rem 1rem 5rem;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+h1 { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  margin-top: 2rem;
+}
+
+.warn-box {
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 1.5rem;
+  color: var(--warn);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.warn-box strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+/* Progress */
+.progress-wrap { margin-bottom: 2rem; }
+
+.progress-bar-track {
+  background: var(--surface2);
+  border-radius: 20px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 20px;
+  transition: width 0.35s ease;
+}
+
+.progress-label {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+
+/* Tools grid */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 480px) { .tools-grid { grid-template-columns: 1fr; } }
+
+.tool-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 13px;
+}
+
+.tool-name { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
+.tool-note { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* Section labels */
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text3);
+  font-family: var(--mono);
+  margin-bottom: 8px;
+  margin-top: 1.75rem;
+}
+
+/* Steps */
+.step {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.step.done { border-color: var(--green); }
+
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.step-header:hover { background: var(--surface2); }
+
+.check-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: none;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: 2px;
+  transition: background 0.2s, border-color 0.2s;
+  padding: 0;
+  color: transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step.done .check-btn {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+
+.step-meta { flex: 1; }
+.step-num { font-size: 10px; font-family: var(--mono); color: var(--text3); margin-bottom: 2px; }
+.step-title { font-size: 14px; font-weight: 500; }
+.step-summary { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.step-chevron {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 3px;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.step.open .step-chevron { transform: rotate(90deg); }
+
+.step-body {
+  display: none;
+  padding: 2px 16px 16px 48px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text2);
+}
+
+.step.open .step-body { display: block; }
+.step-body p { margin-bottom: 10px; }
+.step-body p:last-child { margin-bottom: 0; }
+.step-body strong { color: var(--text); font-weight: 500; }
+
+.step-body ol {
+  padding-left: 18px;
+  margin-bottom: 10px;
+}
+
+.step-body ol li { margin-bottom: 5px; }
+
+.tip {
+  background: var(--ok-bg);
+  border-left: 2.5px solid var(--green);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  color: var(--ok);
+  margin: 10px 0;
+}
+
+.caution {
+  background: var(--warn-bg);
+  border-left: 2.5px solid var(--warn);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  color: var(--warn);
+  margin: 10px 0;
+}
+
+.step-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 12px;
+}
+
+.source-line {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--border);
+}
+
+/* Diagrams */
+.diagram {
+  margin: 14px 0;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  text-align: center;
+}
+
+.diagram svg { max-width: 100%; height: auto; }
+
+.diagram-caption {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 8px;
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+
+/* Risk table */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th {
+  text-align: left;
+  padding: 9px 14px;
+  background: var(--surface2);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+td {
+  padding: 10px 14px;
+  border-top: 0.5px solid var(--border);
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.risk-high { color: #c0442a; font-weight: 500; }
+.risk-med  { color: #8a6400; font-weight: 500; }
+.risk-low  { color: #275009; font-weight: 500; }
+
+@media (prefers-color-scheme: dark) {
+  .risk-high { color: #f09970; }
+  .risk-med  { color: #d4a840; }
+  .risk-low  { color: #8fc053; }
+}
+
+/* Sources */
+.sources {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.sources h2 { margin-top: 0; }
+
+.sources ul { list-style: none; }
+
+.sources li {
+  padding: 7px 0;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+
+.sources li:last-child { border-bottom: none; }
+.sources a { color: var(--accent); text-decoration: none; }
+.sources a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>HiFiBerry DAC+ Pro — Header Replacement</h1>
+    <span class="subtitle">beginner desoldering &amp; passthrough header guide</span>
+  </header>
+
+  <div class="warn-box">
+    <strong>⚠ Read before you start</strong>
+    HiFiBerry explicitly warns this is only for <em>experienced solderers</em> and voids your warranty. Multiple boards have been damaged by people attempting it. <strong>Practice on a cheap scrap PCB first</strong> — buy any spare board with a through-hole header, desolder it, and get the muscle memory before touching the DAC+ Pro.
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-wrap">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">0 of 13 steps complete — click a circle to check off</div>
+  </div>
+
+  <!-- TOOLS -->
+  <h2>Tools you need</h2>
+  <div class="tools-grid">
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Soldering iron — 40W+ with temp control</div>
+        <div class="tool-note">25W is too weak. You need fast heat or you'll cook the board while waiting for the joint to flow.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Desoldering pump (solder sucker)</div>
+        <div class="tool-note">Spring-loaded plunger that creates suction. Your primary tool for clearing holes.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Desoldering wick (solder braid)</div>
+        <div class="tool-note">Copper braid that absorbs solder by capillary action. Backup for stubborn joints.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Flux (paste or liquid)</div>
+        <div class="tool-note">Helps solder reflow cleanly. Essential for making wick work on oxidized joints.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">PCB holder / helping hands</div>
+        <div class="tool-note">Both hands will be occupied — iron in one, solder sucker in the other.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Isopropyl alcohol (90%+) + brush</div>
+        <div class="tool-note">Cleans flux residue after you're done. Don't skip this step.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">Magnifying loupe or bright lamp</div>
+        <div class="tool-note">Required for inspecting 40 joints. You can't see a cold joint without good light and magnification.</div>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div>
+        <div class="tool-name">2×20 stacking / passthrough header</div>
+        <div class="tool-note">Extra-tall pins that pass through to let another HAT sit on top. Verify pin count before ordering.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEPS ======================== -->
+
+  <div class="section-label">Preparation</div>
+
+  <!-- Step 1 -->
+  <div class="step" id="s1">
+    <div class="step-header" onclick="toggleOpen('s1')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s1')" aria-label="Mark step 1 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 01</div>
+        <div class="step-title">Practice on a scrap board first</div>
+        <div class="step-summary">Build the muscle memory before touching the DAC+ Pro.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Find any scrap PCB with a through-hole header — an old motherboard, a spare GPIO extender, anything. Desolder it completely. Then solder a fresh header back. The goal is not a working board; it's feeling the timing of heat → trigger until it becomes automatic.</p>
+      <div class="tip">A 40-pin GPIO extension header costs under $2 and is perfect practice material. The motions on that are identical to what you'll do on the DAC+ Pro.</div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step" id="s2">
+    <div class="step-header" onclick="toggleOpen('s2')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s2')" aria-label="Mark step 2 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 02</div>
+        <div class="step-title">Secure the board — both hands must be free</div>
+        <div class="step-summary">Use a PCB holder or vise. Do not hold the board with your hand.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Clamp the DAC+ Pro in a PCB holder at a comfortable working height. You'll have the iron in one hand and the solder sucker in the other — there is no hand available to hold the board.</p>
+      <div class="caution">If the board shifts while you're working, you risk dragging the iron across the PCB or burning yourself. Secure it before you pick up the iron.</div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step" id="s3">
+    <div class="step-header" onclick="toggleOpen('s3')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s3')" aria-label="Mark step 3 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 03</div>
+        <div class="step-title">Set iron temperature and tin the tip</div>
+        <div class="step-summary">380°C for lead-free (factory standard). Tin the tip before starting.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Factory solder is almost certainly lead-free, which needs more heat than leaded. Start at 380°C (716°F). A correctly-sized joint should reflow in 2–3 seconds — if it takes longer your iron is too cool and you're damaging the board through sustained heat.</p>
+      <p>Before touching any joint: wipe the tip on a damp sponge, then apply a small bead of fresh solder to it. A shiny silver tip conducts heat well. A dark, crusty tip doesn't.</p>
+      <div class="tip">Re-tin the tip every 4–5 joints. Oxidation builds quickly and kills heat transfer.</div>
+    </div>
+  </div>
+
+  <div class="section-label">Desoldering the old header</div>
+
+  <!-- Step 4 -->
+  <div class="step" id="s4">
+    <div class="step-header" onclick="toggleOpen('s4')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s4')" aria-label="Mark step 4 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 04</div>
+        <div class="step-title">Add fresh solder to every joint first</div>
+        <div class="step-summary">Counterintuitive but it makes removal much easier.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Touch a small amount of fresh solder to each existing joint and let it flow. This mixes with the old solder, lowers its melting point, and breaks up surface oxidation. Every subsequent step will be easier because of this.</p>
+      <div class="source-line">
+        <a href="https://hilelectronic.com/soldering-and-desoldering-header-pins-on-pcbs/" target="_blank">Source: Mastering Soldering and Desoldering Header Pins on PCBs — HilElectronic</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step" id="s5">
+    <div class="step-header" onclick="toggleOpen('s5')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s5')" aria-label="Mark step 5 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 05</div>
+        <div class="step-title">The solder sucker must be at 90° — no exceptions</div>
+        <div class="step-summary">Any tilt creates an air gap and kills the vacuum.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <div class="diagram">
+        <svg width="500" height="210" viewBox="0 0 500 210" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+          <defs>
+            <marker id="arr" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+              <path d="M0,0 L0,7 L7,3.5 Z" fill="#639922"/>
+            </marker>
+          </defs>
+
+          <!-- LEFT: CORRECT -->
+          <!-- PCB -->
+          <rect x="20" y="130" width="200" height="18" rx="3" fill="#2d6a2d"/>
+          <text x="120" y="163" font-size="10" fill="#9a9890" text-anchor="middle">PCB</text>
+          <!-- Pin -->
+          <rect x="116" y="82" width="8" height="66" rx="1" fill="#b0b0b0"/>
+          <!-- Solder blob at joint -->
+          <ellipse cx="120" cy="131" rx="11" ry="5" fill="#c8c8c8"/>
+          <!-- Sucker body — vertical (correct) -->
+          <rect x="113" y="26" width="14" height="52" rx="5" fill="#444"/>
+          <ellipse cx="120" cy="26" rx="7" ry="4" fill="#555"/>
+          <!-- Sucker tip pointing straight down -->
+          <path d="M114,76 L116,82 L124,82 L126,76 Z" fill="#333"/>
+          <!-- 90° arc indicator -->
+          <path d="M120,125 A16,16 0 0,1 136,131" fill="none" stroke="#639922" stroke-width="1.5"/>
+          <text x="138" y="128" font-size="10" fill="#639922" font-weight="600">90°</text>
+          <!-- Suction arrows going up through body -->
+          <line x1="120" y1="60" x2="120" y2="44" stroke="#639922" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="120" y1="75" x2="120" y2="62" stroke="#639922" stroke-width="1.5"/>
+          <!-- CORRECT label -->
+          <rect x="35" y="8" width="170" height="26" rx="5" fill="#eaf3de"/>
+          <text x="120" y="26" font-size="12" fill="#275009" font-weight="700" text-anchor="middle">✓  CORRECT — 90°</text>
+          <!-- Seal note -->
+          <text x="120" y="185" font-size="10" fill="#639922" text-anchor="middle" font-weight="500">Full seal = strong suction</text>
+
+          <!-- Divider -->
+          <line x1="250" y1="5" x2="250" y2="205" stroke="#9a9890" stroke-width="0.5" stroke-dasharray="4,3"/>
+
+          <!-- RIGHT: WRONG — tilted -->
+          <!-- PCB -->
+          <rect x="280" y="130" width="200" height="18" rx="3" fill="#2d6a2d"/>
+          <!-- Pin -->
+          <rect x="376" y="82" width="8" height="66" rx="1" fill="#b0b0b0"/>
+          <!-- Solder blob -->
+          <ellipse cx="380" cy="131" rx="11" ry="5" fill="#c8c8c8"/>
+          <!-- Sucker body — tilted ~35° from vertical -->
+          <g transform="rotate(-35,380,78)">
+            <rect x="373" y="26" width="14" height="52" rx="5" fill="#444"/>
+            <ellipse cx="380" cy="26" rx="7" ry="4" fill="#555"/>
+            <path d="M374,76 L376,82 L384,82 L386,76 Z" fill="#333"/>
+          </g>
+          <!-- Air gap indicator -->
+          <path d="M362,122 Q356,115 363,108" fill="none" stroke="#c0442a" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <text x="290" y="110" font-size="10" fill="#c0442a">gap breaks</text>
+          <text x="290" y="122" font-size="10" fill="#c0442a">the seal</text>
+          <!-- WRONG label -->
+          <rect x="295" y="8" width="170" height="26" rx="5" fill="#faece7"/>
+          <text x="380" y="26" font-size="12" fill="#712b13" font-weight="700" text-anchor="middle">✗  WRONG — tilted</text>
+          <!-- Fail note -->
+          <text x="380" y="185" font-size="10" fill="#c0442a" text-anchor="middle" font-weight="500">Air gap → suction fails</text>
+        </svg>
+        <div class="diagram-caption">Hold the solder sucker perpendicular to the board surface. Even a small tilt creates an air gap that breaks the vacuum.</div>
+      </div>
+      <div class="source-line">
+        <a href="https://hilelectronic.com/soldering-and-desoldering-header-pins-on-pcbs/" target="_blank">Source: Mastering Soldering and Desoldering Header Pins on PCBs — HilElectronic</a> ·
+        <a href="https://www.wevolver.com/article/how-to-remove-solder-from-a-circuit-board" target="_blank">Comprehensive Desoldering Guide — Wevolver</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="step" id="s6">
+    <div class="step-header" onclick="toggleOpen('s6')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s6')" aria-label="Mark step 6 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 06</div>
+        <div class="step-title">Work in a distributed pattern — don't go pin by pin</div>
+        <div class="step-summary">Skipping around spreads heat and protects the board.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <div class="diagram">
+        <svg width="460" height="145" viewBox="0 0 460 145" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+          <!-- Board background -->
+          <rect x="5" y="30" width="450" height="80" rx="6" fill="#1a3a1a"/>
+          <text x="230" y="22" font-size="10" fill="#9a9890" text-anchor="middle" font-family="monospace">2×20 header — top view (40 pins total)</text>
+
+          <!-- All pins as muted dots -->
+          <g fill="#4a7a4a">
+            <!-- Row A (top) -->
+            <circle cx="30" cy="58" r="8"/><circle cx="52" cy="58" r="8"/>
+            <circle cx="74" cy="58" r="8"/><circle cx="96" cy="58" r="8"/>
+            <circle cx="118" cy="58" r="8"/><circle cx="140" cy="58" r="8"/>
+            <circle cx="162" cy="58" r="8"/><circle cx="184" cy="58" r="8"/>
+            <circle cx="206" cy="58" r="8"/><circle cx="228" cy="58" r="8"/>
+            <circle cx="250" cy="58" r="8"/><circle cx="272" cy="58" r="8"/>
+            <circle cx="294" cy="58" r="8"/><circle cx="316" cy="58" r="8"/>
+            <circle cx="338" cy="58" r="8"/><circle cx="360" cy="58" r="8"/>
+            <circle cx="382" cy="58" r="8"/><circle cx="404" cy="58" r="8"/>
+            <circle cx="426" cy="58" r="8"/><circle cx="448" cy="58" r="8"/>
+            <!-- Row B (bottom) -->
+            <circle cx="30" cy="82" r="8"/><circle cx="52" cy="82" r="8"/>
+            <circle cx="74" cy="82" r="8"/><circle cx="96" cy="82" r="8"/>
+            <circle cx="118" cy="82" r="8"/><circle cx="140" cy="82" r="8"/>
+            <circle cx="162" cy="82" r="8"/><circle cx="184" cy="82" r="8"/>
+            <circle cx="206" cy="82" r="8"/><circle cx="228" cy="82" r="8"/>
+            <circle cx="250" cy="82" r="8"/><circle cx="272" cy="82" r="8"/>
+            <circle cx="294" cy="82" r="8"/><circle cx="316" cy="82" r="8"/>
+            <circle cx="338" cy="82" r="8"/><circle cx="360" cy="82" r="8"/>
+            <circle cx="382" cy="82" r="8"/><circle cx="404" cy="82" r="8"/>
+            <circle cx="426" cy="82" r="8"/><circle cx="448" cy="82" r="8"/>
+          </g>
+
+          <!-- Highlighted pins with order numbers — distributed pattern -->
+          <!-- 1: col0 rowA (start corner) -->
+          <circle cx="30" cy="58" r="8" fill="#c0442a"/>
+          <text x="30" y="62" font-size="9" fill="white" text-anchor="middle" font-weight="700">1</text>
+          <!-- 2: col9 rowA (middle) -->
+          <circle cx="228" cy="58" r="8" fill="#c0442a"/>
+          <text x="228" y="62" font-size="9" fill="white" text-anchor="middle" font-weight="700">2</text>
+          <!-- 3: col19 rowA (far end) -->
+          <circle cx="448" cy="58" r="8" fill="#c0442a"/>
+          <text x="448" y="62" font-size="9" fill="white" text-anchor="middle" font-weight="700">3</text>
+          <!-- 4: col19 rowB -->
+          <circle cx="448" cy="82" r="8" fill="#e88a2a"/>
+          <text x="448" y="86" font-size="9" fill="white" text-anchor="middle" font-weight="700">4</text>
+          <!-- 5: col9 rowB -->
+          <circle cx="228" cy="82" r="8" fill="#e88a2a"/>
+          <text x="228" y="86" font-size="9" fill="white" text-anchor="middle" font-weight="700">5</text>
+          <!-- 6: col0 rowB -->
+          <circle cx="30" cy="82" r="8" fill="#e88a2a"/>
+          <text x="30" y="86" font-size="9" fill="white" text-anchor="middle" font-weight="700">6</text>
+          <!-- 7: col4 rowA -->
+          <circle cx="118" cy="58" r="8" fill="#8aaa30"/>
+          <text x="118" y="62" font-size="9" fill="white" text-anchor="middle" font-weight="700">7</text>
+          <!-- 8: col14 rowB -->
+          <circle cx="338" cy="82" r="8" fill="#8aaa30"/>
+          <text x="338" y="86" font-size="9" fill="white" text-anchor="middle" font-weight="700">8</text>
+
+          <text x="230" y="128" font-size="10" fill="#9a9890" text-anchor="middle">Numbers = desoldering order. Skip corners → middle → fill in gaps. Never march left to right.</text>
+        </svg>
+        <div class="diagram-caption">Start at corners (1–3), jump to opposite corner (4–6), then fill in between. The goal is no single area gets repeatedly heated.</div>
+      </div>
+      <p><strong>After every 5–6 joints, pause for 30 seconds and let the board cool.</strong> PCB laminate can delaminate from sustained localized heat. Slow and distributed beats fast and linear.</p>
+      <div class="source-line">
+        <a href="https://www.wevolver.com/article/how-to-remove-solder-from-a-circuit-board" target="_blank">Source: Comprehensive Desoldering Guide — Wevolver</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="step" id="s7">
+    <div class="step-header" onclick="toggleOpen('s7')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s7')" aria-label="Mark step 7 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 07</div>
+        <div class="step-title">The desoldering motion: heat → position → trigger</div>
+        <div class="step-summary">The timing is the entire skill. Keep the iron on the joint when you trigger.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li><strong>Pre-load</strong> the solder sucker — press the plunger until it clicks.</li>
+        <li><strong>Touch the iron</strong> to the joint where the pin meets the pad. Hold 2–3 seconds until the solder goes shiny and liquid.</li>
+        <li><strong>Without lifting the iron</strong>, bring the solder sucker tip over the joint at 90°.</li>
+        <li><strong>Trigger</strong>. The solder should clear in under a second.</li>
+        <li><strong>Inspect the hole</strong> — it should be open and clear. If solder remains, repeat.</li>
+      </ol>
+      <div class="tip">The most common mistake is lifting the iron before triggering. The solder re-solidifies in the fraction of a second before suction hits. Keep the iron on the joint the whole time.</div>
+      <div class="source-line">
+        <a href="https://www.diyaudio.com/community/threads/cleanly-unsolder-and-remove-a-2x20-pin-header.320208/" target="_blank">Source: Cleanly unsolder a 2×20 pin header — diyAudio</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 8 -->
+  <div class="step" id="s8">
+    <div class="step-header" onclick="toggleOpen('s8')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s8')" aria-label="Mark step 8 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 08</div>
+        <div class="step-title">Use desoldering wick for stubborn joints</div>
+        <div class="step-summary">Backup method when the sucker doesn't fully clear a hole.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Apply a drop of flux to the wick first. Lay the wick flat against the joint. Place the iron on top of the wick — not directly on the joint. The wick conducts heat to the solder and absorbs it by capillary action.</p>
+      <p>When done, <strong>lift the iron and wick together in one straight motion</strong>. Don't drag — the wick can stick to a cooling joint and pull the pad with it.</p>
+      <div class="caution">Dry wick on an oxidized joint often does nothing. Always add flux first.</div>
+      <div class="source-line">
+        <a href="https://hilelectronic.com/soldering-and-desoldering-header-pins-on-pcbs/" target="_blank">Source: Mastering Soldering and Desoldering Header Pins on PCBs — HilElectronic</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 9 -->
+  <div class="step" id="s9">
+    <div class="step-header" onclick="toggleOpen('s9')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s9')" aria-label="Mark step 9 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 09</div>
+        <div class="step-title">Remove the old header — never force it</div>
+        <div class="step-summary">If it won't pull free, there's solder still in a joint. Find it.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>With all 40 joints cleared, the header should lift free with a gentle wiggle and minimal force. If it resists, <strong>do not pull or lever it</strong>. Find which joint is still holding — usually one or two near a corner — and clear it before trying again.</p>
+      <div class="caution">Forcing a stuck header is the number-one cause of lifted pads on Pi HATs. A lifted pad is usually permanent. One joint is holding you back, not the whole header — find it.</div>
+      <div class="source-line">
+        <a href="https://support.hifiberry.com/hc/en-us/community/posts/201493282-Hifiberry-DAC-GPIO-passthrough-pinout" target="_blank">Source: HiFiBerry — GPIO passthrough community thread</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Soldering the passthrough header</div>
+
+  <!-- Step 10 -->
+  <div class="step" id="s10">
+    <div class="step-header" onclick="toggleOpen('s10')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s10')" aria-label="Mark step 10 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 10</div>
+        <div class="step-title">Seat the new header and tack two diagonal corners</div>
+        <div class="step-summary">Lock alignment before committing to all 40 joints.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Drop the stacking header into the cleared holes — it should fall in freely without force. If a pin won't drop through, there's residual solder in that hole. Clear it with wick before proceeding.</p>
+      <p>Solder one pin in two diagonal corners (e.g. top-left and bottom-right). Check alignment from the side — the header should sit flush and perpendicular. Adjust now if needed; it's easy. Adjusting after 40 joints is not.</p>
+    </div>
+  </div>
+
+  <!-- Step 11 -->
+  <div class="step" id="s11">
+    <div class="step-header" onclick="toggleOpen('s11')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s11')" aria-label="Mark step 11 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 11</div>
+        <div class="step-title">Solder all 40 joints — iron touches pin + pad together</div>
+        <div class="step-summary">Solder feeds from the opposite side of the joint, not onto the iron tip.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <div class="diagram">
+        <svg width="440" height="215" viewBox="0 0 440 215" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+          <!-- PCB cross section -->
+          <rect x="80" y="125" width="280" height="20" rx="3" fill="#2d6a2d"/>
+          <text x="220" y="160" font-size="10" fill="#9a9890" text-anchor="middle">PCB</text>
+
+          <!-- Pin through board -->
+          <rect x="215" y="68" width="10" height="77" rx="1.5" fill="#c0c0c0"/>
+
+          <!-- Copper pad ring (top surface) -->
+          <ellipse cx="220" cy="126" rx="18" ry="5" fill="#c8a050" opacity="0.6"/>
+
+          <!-- Solder fillet — concave cone shape (good joint) -->
+          <path d="M203,126 Q207,105 220,100 Q233,105 237,126 Z" fill="#d0d0d0" opacity="0.85"/>
+
+          <!-- Iron coming in from left at ~40° angle -->
+          <!-- Iron body -->
+          <rect x="58" y="108" width="80" height="10" rx="4" fill="#555" transform="rotate(-35,58,113)"/>
+          <!-- Iron tip (hot end, red-ish) -->
+          <path d="M118,100 L134,112 L118,124 Z" fill="#c0442a" transform="rotate(-35,126,112)"/>
+
+          <!-- Labels for iron -->
+          <text x="48" y="88" font-size="11" fill="#c0442a" font-weight="600">Iron tip here</text>
+          <text x="42" y="101" font-size="10" fill="#c0442a">(touches pin + pad)</text>
+          <line x1="124" y1="102" x2="186" y2="119" stroke="#c0442a" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>
+
+          <!-- Solder wire feeding from right -->
+          <path d="M320,72 Q290,95 258,116" fill="none" stroke="#7aaa40" stroke-width="2.5" stroke-dasharray="5,3"/>
+          <!-- Solder wire end (little blob) -->
+          <circle cx="258" cy="116" r="4" fill="#7aaa40"/>
+          <text x="324" y="68" font-size="11" fill="#5a8a30" font-weight="600">Feed solder here</text>
+          <text x="320" y="82" font-size="10" fill="#5a8a30">(opposite side from iron)</text>
+
+          <!-- Result label -->
+          <text x="220" y="195" font-size="10" fill="#9a9890" text-anchor="middle">Result: concave cone fillet, shiny surface = good joint</text>
+        </svg>
+        <div class="diagram-caption">Touch iron to where pin meets pad. Feed solder to the other side — the solder flows toward the heat. Remove solder first, then iron.</div>
+      </div>
+      <div class="caution">Never melt solder on the iron tip and drip it onto the joint. This creates cold joints and blobs that look fine but aren't electrically reliable.</div>
+    </div>
+  </div>
+
+  <!-- Step 12 -->
+  <div class="step" id="s12">
+    <div class="step-header" onclick="toggleOpen('s12')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s12')" aria-label="Mark step 12 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 12</div>
+        <div class="step-title">Inspect every joint with your loupe</div>
+        <div class="step-summary">Good = concave, shiny. Bad = convex blob, dull, grainy.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <div class="diagram">
+        <svg width="440" height="165" viewBox="0 0 440 165" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+          <!-- PCB line -->
+          <rect x="10" y="98" width="420" height="14" rx="2" fill="#2d6a2d" opacity="0.5"/>
+
+          <!-- JOINT A: Good -->
+          <rect x="108" y="52" width="8" height="60" rx="1.5" fill="#b0b0b0"/>
+          <path d="M94,98 Q97,74 112,69 Q127,74 130,98 Z" fill="#d4d4d4"/>
+          <rect x="78" y="16" width="68" height="24" rx="5" fill="#eaf3de"/>
+          <text x="112" y="32" font-size="11" fill="#275009" font-weight="700" text-anchor="middle">✓ GOOD</text>
+          <text x="112" y="130" font-size="10" fill="#639922" text-anchor="middle" font-weight="500">Concave fillet</text>
+          <text x="112" y="143" font-size="10" fill="#9a9890" text-anchor="middle">shiny surface</text>
+
+          <!-- JOINT B: Cold -->
+          <rect x="218" y="52" width="8" height="60" rx="1.5" fill="#b0b0b0"/>
+          <ellipse cx="222" cy="96" rx="16" ry="12" fill="#a8a8a8"/>
+          <rect x="186" y="16" width="72" height="24" rx="5" fill="#faece7"/>
+          <text x="222" y="32" font-size="11" fill="#712b13" font-weight="700" text-anchor="middle">✗ COLD</text>
+          <text x="222" y="130" font-size="10" fill="#c0442a" text-anchor="middle" font-weight="500">Convex blob</text>
+          <text x="222" y="143" font-size="10" fill="#9a9890" text-anchor="middle">dull, grey surface</text>
+
+          <!-- JOINT C: Excess / bridging risk -->
+          <rect x="336" y="44" width="8" height="68" rx="1.5" fill="#b0b0b0"/>
+          <ellipse cx="340" cy="94" rx="24" ry="18" fill="#b4b4b4" opacity="0.95"/>
+          <rect x="298" y="16" width="84" height="24" rx="5" fill="#fff3e0"/>
+          <text x="340" y="32" font-size="11" fill="#8a5000" font-weight="700" text-anchor="middle">✗ TOO MUCH</text>
+          <text x="340" y="130" font-size="10" fill="#8a5000" text-anchor="middle" font-weight="500">Excess solder</text>
+          <text x="340" y="143" font-size="10" fill="#9a9890" text-anchor="middle">bridges to next pin</text>
+        </svg>
+        <div class="diagram-caption">Left: perfect — concave, shiny. Middle: cold joint — convex and dull, unreliable connection. Right: too much solder, risk of bridging adjacent pins.</div>
+      </div>
+      <p>Go over every joint in good light with the loupe. Reflow anything that looks dull or convex. Remove bridges with wick. A bad joint won't show up until you're debugging mystery audio problems later.</p>
+    </div>
+  </div>
+
+  <!-- Step 13 -->
+  <div class="step" id="s13">
+    <div class="step-header" onclick="toggleOpen('s13')">
+      <button class="check-btn" onclick="event.stopPropagation(); toggleDone('s13')" aria-label="Mark step 13 complete">✓</button>
+      <div class="step-meta">
+        <div class="step-num">STEP 13</div>
+        <div class="step-title">Clean with IPA, dry, and test before final assembly</div>
+        <div class="step-summary">Remove flux residue, then confirm audio works before putting anything together.</div>
+      </div>
+      <span class="step-chevron">›</span>
+    </div>
+    <div class="step-body">
+      <p>Dip a stiff brush in isopropyl alcohol (90%+) and scrub both sides of the board around the joint area. Flux residue is non-conductive but attracts moisture over time and can cause corrosion. Let it dry completely — a few minutes under light airflow.</p>
+      <p>Seat the DAC+ Pro on your Pi and test audio <em>before</em> assembling the enclosure. If a joint needs touching up, find that out now.</p>
+      <div class="tip">If audio plays but sounds distorted or has crackling, check for cold joints or solder bridges with the loupe. Both are fixable — just harder to diagnose after assembly.</div>
+    </div>
+  </div>
+
+  <!-- RISK TABLE -->
+  <h2>Risk summary</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Risk</th>
+          <th>Likelihood</th>
+          <th>Prevention</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lifted pad from forcing the header</td>
+          <td class="risk-high">High without patience</td>
+          <td>Never force. Find and clear every joint before pulling.</td>
+        </tr>
+        <tr>
+          <td>Solder bridge between adjacent pins</td>
+          <td class="risk-med">Medium (40 pins, tight spacing)</td>
+          <td>Use minimal solder per joint. Inspect with loupe. Remove bridges with wick.</td>
+        </tr>
+        <tr>
+          <td>Overheated trace from slow or weak iron</td>
+          <td class="risk-med">Medium with wrong iron</td>
+          <td>Use 40W+ iron. Fast heat for 2–3s is safer than lingering low heat.</td>
+        </tr>
+        <tr>
+          <td>Cold joint on new header</td>
+          <td class="risk-low">Low if careful</td>
+          <td>Feed solder to the joint, not the iron. Inspect every pin with loupe.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SOURCES -->
+  <div class="sources">
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://hilelectronic.com/soldering-and-desoldering-header-pins-on-pcbs/" target="_blank">Mastering Soldering and Desoldering Header Pins on PCBs — HilElectronic</a></li>
+      <li><a href="https://www.wevolver.com/article/how-to-remove-solder-from-a-circuit-board" target="_blank">How to Remove Solder from a Circuit Board — Wevolver</a></li>
+      <li><a href="https://www.diyaudio.com/community/threads/cleanly-unsolder-and-remove-a-2x20-pin-header.320208/" target="_blank">Cleanly unsolder and remove a 2×20 pin header — diyAudio community</a></li>
+      <li><a href="https://support.hifiberry.com/hc/en-us/community/posts/201493282-Hifiberry-DAC-GPIO-passthrough-pinout" target="_blank">HiFiBerry GPIO passthrough pinout — HiFiBerry community</a></li>
+      <li><a href="https://www.hifiberry.com/accessories/accessories-faq/" target="_blank">HiFiBerry Accessories FAQ</a></li>
+      <li><a href="https://pinside.com/pinball/forum/topic/desoldering-headers" target="_blank">Desoldering headers — Pinside community</a></li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+const KEY = 'soldering-guide-v1';
+const TOTAL = 13;
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
+}
+
+function setState(s) {
+  localStorage.setItem(KEY, JSON.stringify(s));
+}
+
+function refreshProgress() {
+  const s = getState();
+  const done = Object.values(s).filter(Boolean).length;
+  const pct = Math.round(done / TOTAL * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent =
+    done === TOTAL
+      ? '✓ All 13 steps complete — good luck!'
+      : `${done} of ${TOTAL} steps complete — click a circle to check off`;
+}
+
+function toggleDone(id) {
+  const s = getState();
+  s[id] = !s[id];
+  setState(s);
+  const el = document.getElementById(id);
+  el.classList.toggle('done', !!s[id]);
+  refreshProgress();
+}
+
+function toggleOpen(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// Restore state on load
+(function init() {
+  const s = getState();
+  for (const [id, done] of Object.entries(s)) {
+    if (done) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('done');
+    }
+  }
+  refreshProgress();
+})();
+</script>
+</body>
+</html>
