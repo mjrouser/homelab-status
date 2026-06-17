@@ -243,7 +243,7 @@
 
   <header>
     <h1>Homelab status</h1>
-    <time datetime="2026-06-02">2026-06-02</time>
+    <time datetime="2026-06-17">2026-06-17</time>
   </header>
 
   <!-- ======================================================
@@ -307,8 +307,9 @@
         <div class="check-item"><span class="check-dot"></span>Keepalived configured on both nodes — VIP 192.168.1.2, failover tested</div>
         <div class="check-item"><span class="check-dot"></span>Unifi DNS updated to VIP on main VLAN and IoT VLAN</div>
         <div class="check-item"><span class="check-dot"></span>PiHole pause tool live — single-page app at http://192.168.1.129:8080, pauses both nodes simultaneously</div>
+        <div class="check-item"><span class="check-dot"></span>Keepalived notify script on both nodes — restarts pihole-FTL on MASTER transition so FTL always initializes with VIP present</div>
       </div>
-      <p class="card-next"><strong>Next:</strong> Fully operational — two polish items: IPv6 VIP not yet configured, and top clients list shows raw IPs instead of hostnames/client names</p>
+      <p class="card-next"><strong>Next:</strong> Two polish items: IPv6 VIP not yet configured, and top clients list shows raw IPs instead of hostnames/client names</p>
       <div class="pill-row">
         <span class="pill">Pi 3B — primary</span>
         <span class="pill">Pi 4 — replica</span>
