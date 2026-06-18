@@ -90,18 +90,19 @@ A physical box for a Grateful Dead/Phish superfan: set a date with knobs (day/mo
 
 **Hardware candidates:** Pi 3B + HiFiBerry DAC+ Pro. Rotary encoders for date selection. Small display for showing the show date/venue.
 
-**Status:** Active build. Display wired, bench test setup complete. Next step: flash SD card with Raspberry Pi OS Lite.
+**Status:** Software fully working as of 2026-06-17. Target date passed (was June 1 housewarming); gift not yet shipped. Still active.
 
-**Target:** Ship by June 1st (housewarming gift).
+**What's done:**
+- Pi OS Bookworm flashed, deadstream venv installed
+- InnoMaker HiFi DAC confirmed (ALSA hw:1,0, speaker-test passed)
+- Significant runtime bugs fixed in Archivary.py: infinite archive download loop, collection field type mismatch, cross-device tempfile rename failure
+- Display shows date-picker UI ("8/13/75" etc.) — full software stack working
 
-**Session cadence:** ~2 sessions/week, 1–2 hours each.
-
-**Work plan:**
-- Week 1: Flash SD card, boot Pi OS, confirm display renders, verify DAC+ audio
-- Week 2: Wire and test controls — encoders and buttons per PINOUT.md, confirm each input registers
-- Week 3: Install deadstream and dependencies, full end-to-end test — pick a date, stream a show, display working
-- Week 4: Box work and assembly — cut display window, encoder/button holes, RCA jack holes; test fit before final mounting; final assembly and wiring in box
-- Week 5 (buffer): Burn-in test, catch any issues, ship by June 1st
+**What's left:**
+- Create ~/.timemachine_options.txt on Pi (set PULSEAUDIO_ENABLE=false)
+- Wire encoders and buttons per PINOUT.md
+- End-to-end audio test: pick a date, stream a show
+- Box assembly
 
 **Reference:** https://eichblatt.github.io/deadstream/ | https://eichblatt.github.io/deadstream/BuildYourOwn
 
