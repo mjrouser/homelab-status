@@ -6,7 +6,6 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 ---
 
 <!-- IDEAS GO HERE -->
-
 ## Tailscale — homelab mesh VPN
 
 *Captured June 1, 2026*
@@ -274,3 +273,18 @@ A Python script that runs at 6am daily (via cron on Raspberry Pi) and creates a 
 **Status:** Significantly developed. Spotify Developer credentials obtained, ntfy.sh chosen for notifications, full Claude Code prompt written and ready to paste. Mac-compatible version specified for local testing while away from Pi. Blocked on: actually running the Claude Code session to build it.
 
 **Chat reference:** https://claude.ai/chat/bbcacce9-beb7-4b33-a2d2-8331d2422550
+
+
+## Hardware RTC Module — Pi 3B Clock Persistence
+*Added: 2026-07-07*
+
+Both PiHole Pi 3B nodes (pihole1, pihole2) lack a battery-backed clock. After a 4+ day power outage, both booted with stale clocks, causing Unbound DNSSEC validation to reject all signed responses as not-yet-valid → SERVFAIL on every query → whole network DNS down. Manual `date -s` on both nodes broke the deadlock. fake-hwclock only covers short outages (stale-by-days still fails DNSSEC), so a hardware RTC is the real fix.
+
+**What's needed:**
+1. **Find/buy** — DS3231 RTC module (~$5, coin-cell backed, I2C). One per node = 2 units. Verify battery included (CR2032 or LIR2032).
+2. **Install** — clip onto GPIO header (I2C pins: 3.3V, GND, SDA=GPIO2, SCL=GPIO3). NOTE: check for pin conflicts — deadbox uses these for HiFiBerry, but the PiHole Pis are display/HAT-free so should be clear.
+3. **Configure** — add `dtoverlay=i2c-rtc,ds3231` to /boot/firmware/config.txt, disable fake-hwclock, set time once via NTP so the module gets seeded, verify with `hwclock -r` and `timedatectl`.
+
+**Why it matters:** Length of outage becomes irrelevant — module tracks real elapsed time on battery, boots to correct time every time. Prevents the DNSSEC deadlock permanently.
+
+**Status:** Not started. Low urgency but high value — this failure recurs after every long outage until fixed.
