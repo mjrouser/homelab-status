@@ -7,6 +7,25 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## UniFi Internet Block + Network-Wide DNS Enforcement
+*Added: 2026-09-16*
+
+Two related techniques for controlling what devices can reach outside the network.
+
+**1. Per-device internet block.** For devices that need local network access but shouldn't reach the internet (e.g. a smart TV you want controllable via HomeKit), use a UniFi traffic/firewall rule to block the device's internet access while keeping LAN access. More complete than a Pi-hole DNS blocklist, which LG TVs can bypass by hardcoding public resolvers (8.8.8.8 / 1.1.1.1).
+
+**2. Network-wide DNS enforcement.** Force all DNS through Pi-hole with a UniFi rule blocking outbound TCP/UDP 53 (and 853 for DNS-over-TLS) from all devices except the Pi-hole nodes (192.168.1.129, 192.168.1.13). Exempt the nodes, not the VIP, since Unbound needs direct access to root servers. Better version: DNAT-redirect port 53 to the VIP (192.168.1.2) so hardcoded-DNS devices get filtered answers instead of breaking. Does not catch DNS-over-HTTPS (port 443) or hardcoded IPs; those need technique 1.
+
+**Testing:** Apply to IoT VLAN first, keep the rule toggle handy for rollback. Verify from a laptop with `dig @8.8.8.8 doubleclick.net` — should be blocked or answered by Pi-hole.
+
+**Context:** Came up while deciding what to do about the LG TV after the Gamers Nexus data-collection investigation (Sept 2026). Decided to unplug the LG from the network entirely, since the Apple TV covers what HomeKit was used for via HDMI-CEC.
+
+**Reference:** github.com/zzzpoint/lg-tv-blocklist (DNS blocklist approach and its caveats)
+
+**Status:** Idea only. No device currently needs technique 1; technique 2 is an optional network hardening project.
+
+---
+
 ## NUT — UPS-Triggered Clean Shutdown for the Pis
 *Added: 2026-09-16*
 
