@@ -6,6 +6,26 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 ---
 
 <!-- IDEAS GO HERE -->
+
+## NUT — UPS-Triggered Clean Shutdown for the Pis
+*Added: 2026-09-16*
+
+Use Network UPS Tools (NUT) so the rack UPS can tell the Pis to shut down cleanly before its battery runs out, instead of cutting power mid-write. Prompted by the September outage: both Pi-hole nodes died with suspected SD card corruption, and a likely cause is an outage that outlasted the UPS battery, so everything powered off hard.
+
+**How it would work:** UPS USB data cable → one always-on host runs the NUT server and watches battery level → Pis run NUT clients and shut down gracefully when the battery hits a low threshold.
+
+**Open questions:**
+- Does the UPS have a USB data port, and is its model supported by NUT?
+- Which machine hosts the NUT server? It needs to be the most reliable box on the rack.
+- Is the power strip on a battery-backed outlet, and does the UPS battery pass a self-test? (Check first.)
+- Could the deadbox or other Pis join later?
+
+**Status:** Idea. Do after the Pi-hole rebuild, not before.
+
+**Related:** Pi-hole rebuild (Kingston A400 SSD for pihole2, SanDisk Max Endurance card for pihole1).
+
+---
+
 ## Tailscale — homelab mesh VPN
 
 *Captured June 1, 2026*
