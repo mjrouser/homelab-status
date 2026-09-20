@@ -7,6 +7,33 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## Untrusted Device VLAN — Isolate Third-Party Telemetry
+*Added: 2026-09-19*
+
+Put any device running vendor-managed agents (device management, endpoint security, telemetry) on its own VLAN so those agents can't see or scan the rest of the home network, and route its DNS through Pi-hole for both filtering and visibility. Right now anything that enumerates the LAN gets a full inventory of the homelab, the Pis, the smart home devices, and every family machine.
+
+**Goal state:** The isolated VLAN reaches the internet and the Pi-hole VIP. It cannot initiate connections to the main LAN or IoT VLAN. Nothing on the home network needs to reach it, so the rules can be one-way and strict — simpler than the IoT VLAN case, which needs Home Assistant to reach back.
+
+**How to get a locked-down device onto it (the actual friction point):** A managed device usually can't be told to tag a VLAN itself. Two options that need zero changes on the device:
+- **Wireless:** create a dedicated SSID in UniFi mapped to the isolated VLAN. Join it like any other network. Easiest path.
+- **Wired:** set the untagged/native VLAN on the specific switch port the device docks into.
+
+**DNS:** The isolated VLAN points at the Pi-hole VIP (192.168.1.2). Same pattern already in place for the IoT VLAN, so the nodes are used to serving multiple VLANs. Two payoffs: telemetry gets filtered, and the query log becomes a live record of what the agents actually contact.
+
+**This requires an allow rule, not just a block rule.** "Isolated VLAN cannot reach the main LAN" would also block DNS to the VIP. Rule order needs to be: allow isolated VLAN → 192.168.1.2 on UDP/TCP 53, then block isolated VLAN → main VLAN and IoT VLAN. Allow rule above the block.
+
+**Blocklist scoping:** Give the device its own Pi-hole client group with a lighter blocklist. SSO portals and SaaS apps lean on domains that aggressive lists sometimes catch, and a false positive on a machine someone depends on daily costs a whole day, not a nuisance. Start permissive, tighten by watching the log. Make group changes on the primary (192.168.1.129) — Nebula Sync is one-directional.
+
+**VPN caveat:** When a VPN client is up, it will likely push its own DNS and bypass Pi-hole for the tunnel's duration. Expect gaps in the log, not breakage. If the network-wide port 53 block idea ever gets built, this VLAN doesn't need an exemption — VPN DNS rides inside the encrypted tunnel and never appears as port 53 at the gateway.
+
+**Known limit:** DNS filtering only sees what uses DNS. Hardcoded IPs and DNS-over-HTTPS on 443 — which plenty of endpoint agents use deliberately — sail past Pi-hole entirely. The VLAN isolation is what's actually doing the work here. Pi-hole is the window, not the lock.
+
+**Related:** IoT VLAN Firewall Rules entry (same UniFi mechanics, different trust direction). UniFi Internet Block + Network-Wide DNS Enforcement entry (the port 53 lockdown referenced above).
+
+**Status:** Idea only. Low setup cost — SSID + VLAN + three firewall rules, maybe 30 minutes in the UniFi controller with no changes on the device itself. Test the allow-before-block rule order from the device with `nslookup google.com 192.168.1.2` before trusting it.
+
+---
+
 ## UniFi Internet Block + Network-Wide DNS Enforcement
 *Added: 2026-09-16*
 
