@@ -263,7 +263,7 @@ Place two old monitors in front-facing windows to make the house appear to have 
 
 **Tech involved:** Video looping (VLC, mpv, or browser fullscreen), optional OpenCV for motion detection, Pi or Mac Mini.
 
-**Status:** Early idea, seasonal. No urgency — plan ahead for next Halloween.
+**Status:** **Active project — now lives at `~/repos/halloween-eyes`.** Designed and in build as of 2026-09-20; targeting Halloween, Sat 2026-10-31. Scope settled as two procedurally animated eyes on a single Raspberry Pi 5 driving both monitors — not looping video. Motion reactivity via the camera module is explicitly deferred as the growth path. See that repo's `docs/DESIGN.md` and `docs/PLAN.md`.
 
 ---
 
