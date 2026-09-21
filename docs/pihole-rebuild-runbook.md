@@ -48,7 +48,13 @@ UniFi DHCP points at 192.168.1.2 on both networks, a client on the main LAN and 
 
 ### Two things to do first
 
-**1. Swap the UniFi DHCP reservations.** Today .129 is reserved to the Pi 3B's MAC and .13 to the Pi 4's. They're trading places, so each reservation needs to move to the other MAC. Skip this and you get address conflicts that look exactly like the failures you just chased.
+**1. Sort out the UniFi addressing.** *(Corrected 2026-09-20 — the original text assumed reservations already existed for .129 and .13. They did not.)*
+
+UniFi has no central "DHCP reservations" page — a reservation is a per-client setting, visible only when you open that client, and **offline clients are hidden by default**. With both Pi-hole nodes down, the Pi 3B had aged out of the client list entirely, so there was nothing to "swap."
+
+What actually matters: **the main LAN DHCP pool is `192.168.1.6 – 192.168.1.254`, so both .129 and .13 sit inside leasable space.** Neither address is safe on its own. For each node, boot it on DHCP first, read its MAC off the running system (`ip link show eth0`), then set the fixed IP in UniFi *before* setting the on-device static.
+
+The VIP (192.168.1.2) is below .6 and therefore outside the pool — safe. See `ideas.md` → "DHCP Pool Narrowing" for the structural fix.
 
 **2. Check the UPS.** Which outlet is the rack strip plugged into, is it battery-backed, and does the battery pass a self-test? Also look for a USB data port on the back, which decides whether the NUT idea is viable later.
 
@@ -85,10 +91,22 @@ Double-check you've selected the SSD, not another external drive. This is the on
 
 Plug the SSD into a **blue USB 3.0 port**, boot with no card inserted, then:
 
+**Plug in Ethernet.** The Lite image has no Wi-Fi configured — Ethernet is the only way in.
+
+**Finding the address:** `pihole1.local` will not resolve. Raspberry Pi OS Lite does not run `avahi-daemon`, so mDNS is unavailable. Get the IP from the UniFi client list instead.
+
 ```
 ssh <user>@<whatever address DHCP gave it>
 sudo apt update && sudo apt full-upgrade -y
 date && timedatectl        # clock correct, NTP active
+```
+
+If the upgrade pulled a new kernel or `raspberrypi-firmware`, **reboot before continuing** — per the gotchas list, cold boots expose latent problems, and you want that now rather than after Pi-hole is layered on top.
+
+Grab the MAC while you're here; the UniFi fixed IP needs it:
+
+```
+ip link show eth0 | grep ether
 ```
 
 ### 1.5 Static IP
@@ -96,13 +114,26 @@ date && timedatectl        # clock correct, NTP active
 This runs on the Pi itself. Current Pi OS uses NetworkManager — `dhcpcd.conf` no longer applies.
 
 ```
+**Use `9.9.9.11` here, not `127.0.0.1`.** *(Corrected 2026-09-20.)* Nothing listens on port 53 until Unbound lands in 1.7, so setting `127.0.0.1` at this point leaves the Pi with no resolver and **`apt install unbound` in 1.7 fails**. Point at Quad9 for the build and flip to `127.0.0.1` only after Pi-hole is verified in 1.10.
+
+```
 sudo nmcli con show        # confirm the connection name
 sudo nmcli con mod "Wired connection 1" ipv4.method manual \
-  ipv4.addresses 192.168.1.129/24 ipv4.gateway 192.168.1.1 ipv4.dns "127.0.0.1"
+  ipv4.addresses 192.168.1.129/24 ipv4.gateway 192.168.1.1 ipv4.dns "9.9.9.11"
 sudo nmcli con up "Wired connection 1"
 ```
 
-Your SSH session will drop. Reconnect to 192.168.1.129. Keep the matching UniFi reservation in place so DHCP never hands .129 elsewhere.
+Your SSH session will drop. Reconnect to 192.168.1.129.
+
+**Expect a host key warning** (`REMOTE HOST IDENTIFICATION HAS CHANGED`) — .129 previously belonged to the other node. Clear it with `ssh-keygen -R 192.168.1.129`.
+
+Then prove the resolver works before going further:
+
+```
+ping -c 2 deb.debian.org
+```
+
+Keep the matching UniFi fixed IP in place so DHCP never hands .129 elsewhere.
 
 ### 1.6 Configure the RTC
 
@@ -117,15 +148,53 @@ sudo hwclock -r            # should print the current time
 
 ### 1.7 Unbound
 
+`dig` is **not installed** on Lite and is needed here and in 1.10 — install it alongside Unbound:
+
 ```
-sudo apt install unbound -y
-apt changelog unbound | grep -i -m5 "CVE-2026"
+sudo apt install unbound bind9-dnsutils -y
 unbound -V | head -1
 ```
 
-Debian backports security fixes, so the version string may still read 1.22.x even when patched — trust the changelog, not the number. If the September fixes aren't there yet, don't stall; step 1.8 handles it.
+**Checking the CVE status** *(corrected 2026-09-20)*: `apt changelog unbound` returns a 404 for recently-updated security packages. Use the local copy instead:
 
-Create `/etc/unbound/unbound.conf.d/pi-hole.conf` from the official Pi-hole guide (port 5335, `do-ip6: no`, `prefetch: yes`), then:
+```
+zcat /usr/share/doc/unbound/changelog.Debian.gz | head -40
+apt-cache policy unbound
+```
+
+The original "expect 1.22.x, Debian backports" guidance is **inverted on trixie**. Debian explicitly chose *not* to backport — the changelog states the upstream changes were too tangled — and shipped current upstream instead. As built: `1.26.1-0+deb13u1` from `trixie-security`, carrying the September 2026 fixes including CVE-2026-81642 (CRITICAL, heap overflow / possible RCE on DNSKEY digest). `trixie/main` still offers the older 1.22.0; confirm via `apt-cache policy` that you are on the security-repo build.
+
+Create `/etc/unbound/unbound.conf.d/pi-hole.conf` (port 5335, `do-ip6: no`, `prefetch: yes`):
+
+```
+sudo tee /etc/unbound/unbound.conf.d/pi-hole.conf > /dev/null <<'EOF'
+server:
+    verbosity: 0
+    interface: 127.0.0.1
+    port: 5335
+    do-ip4: yes
+    do-udp: yes
+    do-tcp: yes
+    do-ip6: no
+    prefer-ip6: no
+    harden-glue: yes
+    harden-dnssec-stripped: yes
+    use-caps-for-id: no
+    edns-buffer-size: 1232
+    prefetch: yes
+    num-threads: 1
+    so-rcvbuf: 1m
+    private-address: 192.168.0.0/16
+    private-address: 169.254.0.0/16
+    private-address: 172.16.0.0/12
+    private-address: 10.0.0.0/8
+    private-address: fd00::/8
+    private-address: fe80::/10
+EOF
+unbound-checkconf
+```
+
+Then:
 
 ```
 sudo systemctl restart unbound
@@ -141,25 +210,38 @@ sudo apt install unattended-upgrades -y
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 ```
 
+`dpkg-reconfigure` can exit silently without prompting. Verify it actually took:
+
+```
+cat /etc/apt/apt.conf.d/20auto-upgrades   # both lines should be "1"
+```
+
 This is the real fix for the Unbound CVEs. Manual patch-watching doesn't survive a busy month.
 
 ### 1.8b Hardware watchdog
 
 Both Pis have a watchdog built into the SoC. Turning it on costs nothing and covers the failure that started all this — pihole1 hung while still answering pings, so nothing noticed.
 
-Edit `/etc/systemd/system.conf` and set:
+First confirm the hardware watchdog device exists — without it the systemd setting is a silent no-op:
 
 ```
+ls -l /dev/watchdog*
+```
+
+Use a **drop-in** rather than editing `/etc/systemd/system.conf` directly *(corrected 2026-09-20)*. Same effect, but it survives package upgrades instead of triggering a modified-conffile prompt on every systemd update — which matters once unattended-upgrades is running unsupervised:
+
+```
+sudo mkdir -p /etc/systemd/system.conf.d
+sudo tee /etc/systemd/system.conf.d/watchdog.conf > /dev/null <<'EOF'
+[Manager]
 RuntimeWatchdogSec=15
 RebootWatchdogSec=2min
-```
-
-Then:
-
-```
+EOF
 sudo systemctl daemon-reexec
-sudo systemctl show | grep -i watchdog     # confirm RuntimeWatchdogUSec is set
+systemctl show | grep -i watchdog     # want RuntimeWatchdogUSec=15s
 ```
+
+A live `WatchdogLastPingTimestamp` in that output is the real confirmation — it means systemd is actively petting the device, not merely holding the setting.
 
 If the kernel stops responding for 15 seconds, the Pi resets itself. It won't catch a broken-but-running FTL — that's what the keepalived health check in Phase 3 is for — but it does catch a genuine hang.
 
@@ -195,6 +277,46 @@ dig +short google.com @192.168.1.129        # from your Mac
 Then the same dig from a device on the IoT VLAN. If the LAN works but the VLAN doesn't, it's a UniFi firewall rule, not Pi-hole: the IoT VLAN needs to reach .129 and .2 on port 53.
 
 **Stopping point.** If you want blocking back now, point UniFi DHCP at 192.168.1.129 and pick this up another day.
+
+### Phase 1 as-built — 2026-09-20
+
+Completed and verified. Deviations from the plan as written:
+
+| Step | What actually happened |
+| --- | --- |
+| 1.1 | Pi 4 would not boot its existing microSD (suspected corrupt). Used the Imager bootloader-utility route instead — flashed **Bootloader → USB Boot** to a spare card, booted once, removed it. EEPROM boot order set; no OS required. |
+| 1.2 | **Skipped** — RTC modules not yet ordered. |
+| 1.3 | Kingston A400 240GB. Enumerated over the UGREEN cable on Mac bus power, **no 12V brick**. Confirmed target with `diskutil list external physical`. |
+| 1.4 | Ethernet was not plugged in on first boot — the Lite image has no Wi-Fi, so the Pi was simply absent from the network. `pihole1.local` never resolves (no avahi on Lite). Upgrade pulled only 2 packages, no kernel, so no reboot was needed. |
+| 1.5 | Applied with `ipv4.dns "9.9.9.11"` — see the correction above. Host key warning on reconnect, cleared with `ssh-keygen -R`. |
+| 1.6 | **Skipped** — no RTC. |
+| 1.7 | Unbound `1.26.1-0+deb13u1` from `trixie-security`. `dig` had to be installed separately. |
+| 1.9 | Installer completed cleanly on Debian 13 — **no unsupported-OS warning**, despite trixie being newer than this runbook assumed. |
+| 1.10 | `vcgencmd get_throttled` → `0x0`. Main LAN resolution and blocking both confirmed. |
+
+**Environment as built:** Raspberry Pi OS Lite 64-bit on **Debian 13 (trixie)**, `multi-user.target`, user `pihole1admin`, hostname `pihole1`, MAC `dc:a6:32:19:7f:d3`, static `192.168.1.129`.
+
+**Open item carried into the next session — IoT VLAN cannot reach DNS on .129.**
+
+From a client at `192.168.16.188`:
+- `ping 192.168.1.129` → **succeeds**, `ttl=63` (routed via the gateway)
+- `dig @192.168.1.129` → **times out**
+
+So this is *not* blanket inter-VLAN isolation, and not a Pi-hole misconfiguration — `listeningMode` is `ALL` and the main LAN resolves fine. Something blocks **port 53 specifically** while permitting ICMP. Candidates: a UniFi DNS-enforcement/redirect feature on the IoT network, or a zone policy scoped to DNS.
+
+**This must be resolved before the Phase 4 cutover** — at cutover the IoT VLAN resolves against the VIP, and if port 53 is blocked the whole VLAN loses DNS. Note the old setup had IoT resolving against `.2` successfully, so whatever permits that may be scoped to the VIP alone.
+
+Next diagnostic steps (untried):
+```
+# on the Pi — confirm FTL listens on all interfaces
+sudo ss -tulnp | grep ':53'          # expect 0.0.0.0:53
+
+# from an IoT client — control test on a non-DNS port
+nc -vz 192.168.1.129 80              # if this connects but 53 does not, the block is DNS-specific
+dig +tcp +short google.com @192.168.1.129
+```
+
+**Ground rule held:** UniFi DHCP remained on 9.9.9.11 (Quad9) throughout. The runbook's optional "point DHCP at .129 now" stopping point was **deliberately declined** — with IoT unable to reach .129 on port 53, an early cutover would have taken the IoT VLAN's DNS offline.
 
 ## Phase 2 — Pi 3B + microSD becomes pihole2
 

@@ -354,3 +354,20 @@ Both PiHole Pi 3B nodes (pihole1, pihole2) lack a battery-backed clock. After a 
 **Why it matters:** Length of outage becomes irrelevant — module tracks real elapsed time on battery, boots to correct time every time. Prevents the DNSSEC deadlock permanently.
 
 **Status:** Not started. Low urgency but high value — this failure recurs after every long outage until fixed.
+
+## DHCP Pool Narrowing — Separate Static and Dynamic Address Space
+*Added: 2026-09-20*
+
+The main LAN DHCP pool spans `192.168.1.6 – 192.168.1.254` — nearly the whole subnet. Every hand-assigned infrastructure static (pihole1 at .129, pihole2 at .13, and anything else set on-device) therefore sits *inside* the range the gateway hands out automatically. Nothing structurally prevents the gateway from leasing one of those addresses to a new device while the intended host is powered off, producing an address conflict that presents as intermittent, device-specific breakage rather than a clean failure.
+
+Surfaced during the September 2026 Pi-hole rebuild: with both Pi-hole nodes down, `.13` had aged out of the client list entirely and was sitting unprotected in leasable space. Per-client fixed IP reservations close the hole one device at a time, but only if you remember to create one for every static host.
+
+**What's needed:**
+1. **Inventory** — list every host currently using a hand-assigned static, plus the VIP (192.168.1.2) and gateway (192.168.1.1).
+2. **Pick a boundary** — e.g. infrastructure below `.100`, DHCP pool `.100 – .254`. Requires renumbering pihole1 off `.129` to something below the line.
+3. **Renumber** — update on-device statics, keepalived `unicast_src_ip`/`unicast_peer`, Nebula Sync endpoints, and any dashboard/script references.
+4. **Shrink the pool** in UniFi, then let existing leases below the boundary expire and move.
+
+**Why it matters:** Makes static/dynamic collision impossible by construction instead of by discipline. Removes a latent, hard-to-diagnose failure class from the whole homelab, not just the Pi-hole nodes.
+
+**Status:** Not started. Deliberately deferred out of the Pi-hole rebuild — it touches the live network and would mean renumbering nodes mid-rebuild. Revisit once DNS has been stable for a few days. Note the renumbering cost is lowest right after a rebuild, while config is fresh.
