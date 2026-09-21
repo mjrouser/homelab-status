@@ -4,3 +4,7 @@ __pycache__/
 
 # Design specs stay local — this repo is public
 docs/superpowers/specs/
+docs/superpowers/plans/
+
+# Brainstorming scratch — local only
+.superpowers/
