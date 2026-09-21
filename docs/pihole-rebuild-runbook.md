@@ -93,7 +93,7 @@ Plug the SSD into a **blue USB 3.0 port**, boot with no card inserted, then:
 
 **Plug in Ethernet.** The Lite image has no Wi-Fi configured — Ethernet is the only way in.
 
-**Finding the address:** `pihole1.local` will not resolve. Raspberry Pi OS Lite does not run `avahi-daemon`, so mDNS is unavailable. Get the IP from the UniFi client list instead.
+**Finding the address:** `avahi-daemon` *is* present and running on Pi OS Lite (confirmed listening on 5353), so `pihole1.local` should resolve once the Pi is actually on the network. If it does not, suspect **no link** — unplugged Ethernet, no Wi-Fi configured — before suspecting mDNS. The UniFi client list is the reliable fallback.
 
 ```
 ssh <user>@<whatever address DHCP gave it>
@@ -287,7 +287,7 @@ Completed and verified. Deviations from the plan as written:
 | 1.1 | Pi 4 would not boot its existing microSD (suspected corrupt). Used the Imager bootloader-utility route instead — flashed **Bootloader → USB Boot** to a spare card, booted once, removed it. EEPROM boot order set; no OS required. |
 | 1.2 | **Skipped** — RTC modules not yet ordered. |
 | 1.3 | Kingston A400 240GB. Enumerated over the UGREEN cable on Mac bus power, **no 12V brick**. Confirmed target with `diskutil list external physical`. |
-| 1.4 | Ethernet was not plugged in on first boot — the Lite image has no Wi-Fi, so the Pi was simply absent from the network. `pihole1.local` never resolves (no avahi on Lite). Upgrade pulled only 2 packages, no kernel, so no reboot was needed. |
+| 1.4 | Ethernet was not plugged in on first boot — the Lite image has no Wi-Fi, so the Pi was simply absent from the network. This also explains the `pihole1.local` failure: avahi *is* running on this image, there was just no link. Upgrade pulled only 2 packages, no kernel, so no reboot was needed. |
 | 1.5 | Applied with `ipv4.dns "9.9.9.11"` — see the correction above. Host key warning on reconnect, cleared with `ssh-keygen -R`. |
 | 1.6 | **Skipped** — no RTC. |
 | 1.7 | Unbound `1.26.1-0+deb13u1` from `trixie-security`. `dig` had to be installed separately. |
@@ -296,25 +296,31 @@ Completed and verified. Deviations from the plan as written:
 
 **Environment as built:** Raspberry Pi OS Lite 64-bit on **Debian 13 (trixie)**, `multi-user.target`, user `pihole1admin`, hostname `pihole1`, MAC `dc:a6:32:19:7f:d3`, static `192.168.1.129`.
 
-**Open item carried into the next session — IoT VLAN cannot reach DNS on .129.**
+**IoT VLAN verification — passed, after a false alarm worth recording.**
 
-From a client at `192.168.16.188`:
-- `ping 192.168.1.129` → **succeeds**, `ttl=63` (routed via the gateway)
-- `dig @192.168.1.129` → **times out**
+The first IoT test appeared to fail and looked convincingly like a UniFi firewall block. It was not. Sequence:
 
-So this is *not* blanket inter-VLAN isolation, and not a Pi-hole misconfiguration — `listeningMode` is `ALL` and the main LAN resolves fine. Something blocks **port 53 specifically** while permitting ICMP. Candidates: a UniFi DNS-enforcement/redirect feature on the IoT network, or a zone policy scoped to DNS.
+| Time | From | Test | Result |
+| --- | --- | --- | --- |
+| 23:24 | IoT `192.168.16.188` | `dig @192.168.1.129` (UDP) | **timed out** |
+| 23:27 | IoT | `ping 192.168.1.129` | succeeded, `ttl=63` |
+| 23:41 | IoT `192.168.16.192` | `nc -vz 192.168.1.129 80` | succeeded |
+| 23:41 | IoT | `dig @1.1.1.1` (UDP 53) | succeeded |
+| 23:41 | IoT | `dig +tcp @192.168.1.129` | succeeded |
+| 23:45 | IoT | `dig @192.168.1.129` (UDP) | **`0.0.0.0` — passes** |
 
-**This must be resolved before the Phase 4 cutover** — at cutover the IoT VLAN resolves against the VIP, and if port 53 is blocked the whole VLAN loses DNS. Note the old setup had IoT resolving against `.2` successfully, so whatever permits that may be scoped to the VIP alone.
+**Cause:** `listeningMode ALL` had been written to the config but FTL had not yet restarted. Until it does, FTL runs in `LOCAL` mode and **silently drops queries from off-subnet clients** — no refusal, no log entry the client can see, just a timeout. From the client side that is indistinguishable from a VLAN firewall block.
 
-Next diagnostic steps (untried):
+**What made it misleading:** ICMP, TCP/22 and TCP/80 all reached `.129` normally, so the evidence looked like "port 53 specifically is blocked," which is a very plausible-sounding firewall rule. The `dig @1.1.1.1` control test is what broke the theory — it proved UDP 53 left the IoT VLAN fine.
+
+**Lesson for Phase 2:** restart FTL and confirm it is listening before running any cross-VLAN test.
+
 ```
-# on the Pi — confirm FTL listens on all interfaces
-sudo ss -tulnp | grep ':53'          # expect 0.0.0.0:53
-
-# from an IoT client — control test on a non-DNS port
-nc -vz 192.168.1.129 80              # if this connects but 53 does not, the block is DNS-specific
-dig +tcp +short google.com @192.168.1.129
+sudo systemctl restart pihole-FTL
+sudo ss -tulnp | grep ':53'          # want 0.0.0.0:53 on both udp and tcp
 ```
+
+No UniFi firewall change was needed. Inter-VLAN DNS to the Pi-hole nodes works as-is, so the Phase 4 cutover prerequisite is already satisfied — though it should be re-verified against the **VIP** (192.168.1.2) once keepalived is up in Phase 3.
 
 **Ground rule held:** UniFi DHCP remained on 9.9.9.11 (Quad9) throughout. The runbook's optional "point DHCP at .129 now" stopping point was **deliberately declined** — with IoT unable to reach .129 on port 53, an early cutover would have taken the IoT VLAN's DNS offline.
 
@@ -487,6 +493,7 @@ Everything that has cost time before, in one place.
 - `dns.listeningMode ALL` is required to serve more than one VLAN. Pi-hole v6 defaults to LOCAL.
 - Only one `127.0.0.1#5335` entry in `dns.upstreams`. Duplicates have crept in before.
 - After a WAN outage, `sudo systemctl restart unbound` clears cached upstream failures.
+- `dns.listeningMode ALL` does not take effect until **pihole-FTL restarts**. Before that, FTL silently drops off-subnet queries — no error, just a timeout — which looks exactly like a VLAN firewall block. Always restart FTL and confirm `0.0.0.0:53` in `ss -tulnp` before concluding the network is at fault.
 
 **Addressing and keepalived**
 
