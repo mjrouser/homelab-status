@@ -317,8 +317,10 @@ The first IoT test appeared to fail and looked convincingly like a UniFi firewal
 
 ```
 sudo systemctl restart pihole-FTL
-sudo ss -tulnp | grep ':53'          # want 0.0.0.0:53 on both udp and tcp
+sudo ss -tulnp | grep -E ':53\s'     # want 0.0.0.0:53 on both udp and tcp
 ```
+
+*(Corrected 2026-09-21 — `grep ':53'` as a plain substring also matches Unbound's `:5335` and avahi's `:5353`, burying the real port-53 lines in noise and producing a false "nothing's listening" read. The `\s` anchor after `53` excludes those.)*
 
 No UniFi firewall change was needed. Inter-VLAN DNS to the Pi-hole nodes works as-is, so the Phase 4 cutover prerequisite is already satisfied — though it should be re-verified against the **VIP** (192.168.1.2) once keepalived is up in Phase 3.
 
@@ -339,7 +341,7 @@ Skip steps 1.1 (no USB boot) and the `vcgencmd` check in 1.10. Run everything el
 ### Notes specific to this node
 
 - **Flash with Raspberry Pi OS Lite (64-bit)** — the Pi 3B supports it and Lite keeps the 1GB of RAM comfortable.
-- **Check the UniFi reservation for .13 points at the Pi 3B's MAC** before setting the static IP.
+- **There is no existing UniFi reservation for .13** *(corrected 2026-09-21 — the original text assumed one existed.)* The Pi 3B has aged out of UniFi's client list, so its MAC cannot be looked up in advance, and `.13` sits inside the DHCP pool (`192.168.1.6 – 192.168.1.254`) unprotected. Boot the Pi on DHCP first, read the MAC with `ip link show eth0`, create the fixed IP in UniFi, and only **then** set the on-device static.
 - **The RTC matters less here** now that this is the backup node, but install it anyway while the Pi is open.
 
 ### Verify before moving on
@@ -349,6 +351,32 @@ dig +short google.com @192.168.1.13
 ```
 
 Both nodes should now answer independently, each with its own Unbound. Neither is serving the network yet.
+
+### Phase 2 as-built — 2026-09-21
+
+Completed and verified. Deviations from the plan as written:
+
+| Step | What actually happened |
+| --- | --- |
+| 1.1 | Skipped — no USB boot on a Pi 3B. |
+| 1.2 | Skipped — RTC modules still not ordered. |
+| 1.3 | SanDisk Max Endurance microSD, hostname `pihole2`, user `pihole2admin`. |
+| 1.4 | `apt full-upgrade` pulled no kernel/firmware update — no reboot needed. MAC `b8:27:eb:8f:97:03`. |
+| — | **UniFi reservation confirmed absent** as predicted by the 2026-09-21 correction above — the Pi 3B had aged out of the client list. Fixed IP for `.13` created from the MAC read in 1.4, before any on-device static was set. |
+| 1.5 | Applied with `ipv4.dns "9.9.9.11"`. Host key warning on reconnect to `.13` (this MAC previously held `.129` in the old topology, and `.13` itself was the Pi 4's old address before the swap) — cleared with `ssh-keygen -R`, run on the Mac, not over the Pi's own SSH session. |
+| 1.6 | Skipped — no RTC. |
+| 1.7 | Unbound `1.26.1-0+deb13u1` from `trixie-security` — matches pihole1 exactly. |
+| 1.8, 1.8b | unattended-upgrades confirmed (`20auto-upgrades` both lines `"1"`). Watchdog confirmed live — `RuntimeWatchdogUSec=15s` and a current `WatchdogLastPingTimestamp`. |
+| 1.9 | Installer completed cleanly, same as pihole1. |
+| 1.10 | `dns.dnssec false`, `dns.listeningMode ALL`, FTL restarted, `ss -tulnp` confirmed `pihole-FTL` bound on `udp 0.0.0.0:53`, `udp *:53`, `tcp 0.0.0.0:53`, `tcp [::]:53` — clean on the first check, no repeat of the Phase 1 false alarm. (The plain `grep ':53'` this runbook used to suggest here briefly hid those lines behind Unbound's `:5335` and avahi's `:5353` — see the correction above.) `vcgencmd get_throttled` was skipped deliberately: it checks USB-boot undervoltage, which doesn't apply to a Pi 3B on microSD. |
+
+**Environment as built:** Raspberry Pi OS Lite 64-bit on Debian 13 (trixie), user `pihole2admin`, hostname `pihole2` (confirmed via `hostnamectl`: `Static hostname: pihole2`), MAC `b8:27:eb:8f:97:03`, static `192.168.1.13`.
+
+**Side issue, resolved:** After the static IP was set, UniFi's client list displayed this device's **name** as `pihole1`, not `pihole2` — alarming at a glance, but `hostnamectl` on the Pi confirmed the real system hostname was correct throughout. Working theory: this exact Pi 3B was the old primary under the v1 setup and carried a manual `pihole1` alias in UniFi from before the rebuild, which resurfaced with the new DHCP lease rather than being overwritten. Fix is cosmetic — rename the client's display name in UniFi — and does not affect DNS, the fixed-IP binding, or anything else already verified.
+
+**Verification:** `dig +short google.com @192.168.1.13` succeeded both from the Pi itself and from the Mac (off-node, matching the runbook's specified check). Cross-VLAN (IoT) verification for pihole2 individually was not run — Phase 1's IoT test already confirmed inter-VLAN reachability to this subnet in general, and the real cross-VLAN check that matters is against the **VIP** once keepalived is up in Phase 3, per the note already on that Phase 1 result.
+
+**Ground rule held:** UniFi DHCP remained on 9.9.9.11 (Quad9) throughout.
 
 ## Phase 3 — keepalived, the VIP, and the health check
 
