@@ -62,6 +62,8 @@ The VIP (192.168.1.2) is below .6 and therefore outside the pool — safe. See `
 
 UniFi DHCP stays on **9.9.9.11 (Quad9)** until Phase 4 verification passes. Nothing you do in Phases 1–3 can take the house offline. That's the safety net — don't give it up early.
 
+*(Retired 2026-09-23 — Phase 4 verification passed and DHCP now points at `192.168.1.2` on both networks. Rollback remains `9.9.9.11`.)*
+
 ## Phase 1 — Pi 4 + SSD becomes pihole1
 
 This phase alone restores DNS. Everything after it is redundancy.
@@ -533,6 +535,8 @@ Completed and verified. Deviations from the plan as written:
 
 **Unexplained, not reproduced:** the very first IoT → VIP queries, a few minutes after a manual failback at 09:49, **timed out twice**, about 2 minutes apart. Meanwhile `dig @192.168.1.129` from the same client worked. The first `ping 192.168.1.2` afterwards took 74 ms (a fresh ARP), and from then on the VIP answered over UDP and TCP. The leading theory was a stale ARP entry for `.2` on the UniFi gateway, still pointing at pihole2. Two further full cycles watched from IoT showed no such delay, so it's recorded rather than fixed. If it recurs, the likely fix is `garp_master_refresh` in the keepalived instance, which re-announces the VIP periodically. **Watch for it during Phase 4.3.**
 
+*(Follow-up 2026-09-23 — reproduced and diagnosed in Phase 4. It was **not** stale ARP: there was no VIP move before the Phase 4 occurrence, every lost query reached pihole1 and was answered, and `1.1.1.1` lost replies at the same rate. `garp_master_refresh` was not applied. See the Phase 4 as-built.)*
+
 **Cross-VLAN prerequisite for Phase 4:** confirmed against the VIP. IoT clients resolve through `192.168.1.2` over UDP and TCP.
 
 **RTC reminder, observed:** after the cold boot, both nodes' journal timestamps started from the time saved at shutdown (about 9 minutes behind) until NTP corrected them. That's harmless at this size; after a long outage it's the DNSSEC failure mode the DS3231 fixes.
@@ -543,40 +547,202 @@ Completed and verified. Deviations from the plan as written:
 
 ### 4.1 Nebula Sync
 
-One direction only: **pihole1 (Pi 4) → pihole2 (Pi 3B)**. Configure the primary as pihole1 at 192.168.1.129 and the replica as pihole2 at 192.168.1.13.
+One direction only: **pihole1 (Pi 4) → pihole2 (Pi 3B)**. The roles swapped in this rebuild, so this is the opposite direction from the old setup. **All Pi-hole config changes get made on pihole1.** A change made on pihole2 is silently overwritten at the next sync.
 
-This direction is now the opposite of the old setup, since the roles swapped. All future Pi-hole config changes get made on the Pi 4.
+*(Corrected 2026-09-23 — the original step didn't say where Nebula Sync runs or how. What follows is the as-built method.)*
 
-After the first sync run, confirm it propagated:
+**Where and how:** the standalone binary on **pihole1**, run once every 6 hours by a systemd timer. Don't use Docker. The daemon costs 100 MB+ of RAM and rewrites iptables on a DNS/keepalived box, and `nebula-sync run` without a `CRON` setting syncs once and exits, so a timer is all it needs. pihole1 is the right host because its writes land on the SSD, not pihole2's card, and it reaches its own API on `127.0.0.1`.
+
+**Before installing:** check that the two configs match apart from secrets. A full sync copies all of pihole1's `pihole.toml` onto pihole2:
 
 ```
-# on pihole2
-pihole-FTL --config dns.dnssec        # expect false
-pihole-FTL --config dns.listeningMode # expect ALL
+# on each node
+sudo grep -vE 'pwhash|password|totp_secret' /etc/pihole/pihole.toml | grep -vE '^\s*#|^\s*$' > ~/ftl-compare.txt
+# on the Mac — no output means identical
+diff <(ssh pihole1admin@192.168.1.129 cat ftl-compare.txt) <(ssh pihole2admin@192.168.1.13 cat ftl-compare.txt)
 ```
+
+Both files must be non-empty (an empty diff of two empty files proves nothing). Delete them afterwards.
+
+**App passwords.** On **both** nodes, run the following, then restart FTL and confirm port 53:
+
+```
+sudo pihole-FTL --config webserver.api.app_sudo true
+```
+
+It's needed on both because a full sync copies pihole1's value onto pihole2. Then, in each node's web UI, go to **Settings → Web interface / API → Configure app password** (Expert mode). Save the password to 1Password **before** clicking *Enable new app password*, because it's shown only once.
+
+**Install** (verify the checksum against the release's `checksums.txt`):
+
+```
+cd ~ && curl -fsSLO https://github.com/lovelaze/nebula-sync/releases/download/v0.11.2/nebula-sync_0.11.2_linux_arm64.tar.gz
+echo "67d08bfebb4c924b64a8d8cf13aedf6bb42ea2dd7d6d5d06bddb6e5ba3991af1  nebula-sync_0.11.2_linux_arm64.tar.gz" | sha256sum --check
+tar xzf nebula-sync_0.11.2_linux_arm64.tar.gz nebula-sync && sudo install -m 0755 nebula-sync /usr/local/bin/nebula-sync && rm nebula-sync nebula-sync_0.11.2_linux_arm64.tar.gz
+```
+
+**Credentials:** in `/etc/nebula-sync/nebula-sync.env`, `root:root 0600`, created empty at `0600` before any password goes in. Passwords never go in this repo.
+
+```
+sudo install -d -m 0700 /etc/nebula-sync && sudo install -m 0600 /dev/null /etc/nebula-sync/nebula-sync.env
+sudo nano /etc/nebula-sync/nebula-sync.env
+```
+
+```
+PRIMARY=http://127.0.0.1|<pihole1 app password>
+REPLICAS=https://192.168.1.13|<pihole2 app password>
+FULL_SYNC=true
+RUN_GRAVITY=false
+CLIENT_SKIP_TLS_VERIFICATION=true
+CLIENT_RETRY_DELAY_SECONDS=5
+```
+
+- The **primary on loopback** means pihole1's password never crosses the network.
+- **HTTPS to the replica** encrypts pihole2's password in transit. Skip-verify is needed because the certificate is self-signed.
+- **`RUN_GRAVITY=false`:** Teleporter carries the adlist URLs, the allow/deny/regex lists, groups and clients, and FTL reloads them on import. It doesn't carry the downloaded blocklist contents. A gravity rebuild on every sync would rewrite pihole2's `gravity.db` four times a day for nothing. A **new adlist** reaches pihole2 at the next sync but only starts blocking after pihole2's own weekly gravity run, unless you force it with `ssh -t pihole2admin@192.168.1.13 'sudo pihole -g'`.
+- **`CLIENT_RETRY_DELAY_SECONDS=5`** works around upstream issue #268 (the config sync racing the replica's post-import FTL restart).
+- **Never set `NS_DEBUG=true`.** It prints every password to the log (upstream #269).
+
+**First run by hand, then verify pihole2:**
+
+```
+# on pihole1
+sudo nebula-sync run --env-file /etc/nebula-sync/nebula-sync.env
+# on pihole2 — sudo is required; without it pihole-FTL can't read pihole.toml and prints DEFAULTS
+sudo pihole-FTL --config dns.dnssec              # expect false
+sudo pihole-FTL --config dns.listeningMode       # expect ALL
+sudo pihole-FTL --config webserver.api.app_sudo  # expect true
+sudo ss -tulnp | grep -E ':53\s'
+sudo /usr/local/bin/dns_check.sh; echo "exit=$?"
+```
+
+Then **run the sync a second time**. It proves the replica's app password survives the Teleporter import, which otherwise shows up as a 401 on every later run.
+
+**systemd units** on pihole1:
+
+```
+# /etc/systemd/system/nebula-sync.service
+[Unit]
+Description=Nebula Sync (pihole1 -> pihole2)
+Wants=network-online.target
+After=network-online.target pihole-FTL.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/nebula-sync/nebula-sync.env
+ExecStart=/usr/local/bin/nebula-sync run
+TimeoutStartSec=5min
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+```
+
+```
+# /etc/systemd/system/nebula-sync.timer
+[Unit]
+Description=Run Nebula Sync every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00/6:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```
+sudo systemctl daemon-reload && sudo systemctl enable --now nebula-sync.timer
+sudo systemctl start nebula-sync && journalctl -u nebula-sync --since "-2min" --no-pager | tail -12
+```
+
+**After a config change on pihole1**, sync immediately with `sudo systemctl start nebula-sync`. If you forget, the timer catches up within 6 hours. A file-watcher trigger was considered and rejected: `gravity.db` is held open by FTL, so a watcher fires never or constantly.
 
 ### 4.2 Cutover
 
-In UniFi, set DHCP DNS back to **192.168.1.2** on **both** the main LAN and the IoT VLAN. Then renew a client on each network and confirm resolution:
+**First, re-check the ground rule:** pihole1 holds `.2` (`ip -4 addr show eth0`), and the VIP answers from the main LAN **and** the IoT VLAN right now.
+
+Then cut over **one network at a time**, main LAN first. In UniFi, go to **Settings → Networks → (network) → DHCP → DNS Server** and set the **only** entry to `192.168.1.2`. **Remove `9.9.9.11` entirely.** A public server left as a secondary lets clients bypass Pi-hole at random. **Rollback:** set it back to `9.9.9.11`.
+
+*(Corrected 2026-09-23 — `nslookup` on the Mac doesn't test the cutover. Tailscale's MagicDNS (`100.100.100.100`) sits in front of the system resolver and, right after a renew, was still forwarding to the old upstream.)* Verify what DHCP actually handed out instead:
 
 ```
-nslookup google.com
-nslookup doubleclick.net      # should return 0.0.0.0 — blocking is live
+ipconfig getpacket en0 | grep -E 'yiaddr|domain_name_server'   # want {192.168.1.2} and nothing else
 ```
 
-### 4.3 Post-cutover watch
+To renew, **re-join the SSID** or toggle Wi-Fi. Don't use `sudo ipconfig set en0 DHCP`: it takes the interface out of System Settings' control. If it was used, undo it with `networksetup -setdhcp Wi-Fi`, then toggle Wi-Fi power.
 
-Over the next few minutes, check the Pi-hole query log for the five IoT clients that were retry-storming (192.168.16.25, .27, .28, .29, .164). If the storm resumes, note it but don't chase it now — it's a separate thread.
+Then watch devices arrive, on pihole1:
 
-One last failover test with real traffic flowing is worth doing: stop FTL on pihole1 and confirm the house stays online.
+```
+sudo awk '$3 >= "HH:MM:SS"' /var/log/pihole/pihole.log | grep -oE 'from 192\.168\.(1|16)\.[0-9]+' | sort | uniq -c | sort -rn | head -20
+```
+
+Expect a trickle, not a flood. Devices only switch when their lease renews.
+
+### 4.3 Post-cutover watch and final failover test
+
+Check the query log for the five IoT clients that were retry-storming (192.168.16.25, .27, .28, .29, .164). If the storm resumes, note it but don't chase it. It's a separate thread.
+
+Then run the hands-off Tab A / Tab B cycle from 3.4, with real traffic flowing. Tab A runs on an IoT client. **If that client is a laptop with a wired connection on the main LAN too, unplug it first.** A directly connected `192.168.1.0/24` interface wins the route, and "the IoT test" silently becomes a main-LAN test. Check with `route -n get 192.168.1.2 | grep interface`. Afterwards, check pihole2's log for real clients it served during the window, and pihole1's keepalived log for `Entering MASTER STATE` inside Tab A's window.
+
+### 4.4 Maintenance hardening
+
+Both nodes, all OS-level changes, none of which Nebula Sync touches:
+
+**Journal cap** (the default allows ~10% of the disk):
+
+```
+sudo mkdir -p /etc/systemd/journald.conf.d && printf '# Cap persistent journal size (Pi-hole rebuild, Phase 4)\n[Journal]\nSystemMaxUse=100M\n' | sudo tee /etc/systemd/journald.conf.d/size.conf && sudo systemctl restart systemd-journald && journalctl --disk-usage
+```
+
+**Staggered automatic reboots.** unattended-upgrades installs kernel patches but doesn't reboot by default, so they never take effect. pihole2 reboots at 03:30 and pihole1 at 04:30, only when an update requires it. Each one is just a failover.
+
+```
+# pihole2 (use "04:30" on pihole1)
+printf '// Reboot when an update requires it. Staggered: pihole2 03:30, pihole1 04:30.\nUnattended-Upgrade::Automatic-Reboot "true";\nUnattended-Upgrade::Automatic-Reboot-Time "03:30";\n' | sudo tee /etc/apt/apt.conf.d/52unattended-reboot && apt-config dump | grep -i automatic-reboot
+```
+
+**Deliberately not done:**
+- **No cleanup scripts.** Pi-hole rotates its own logs and prunes the query DB at 91 days, and apt cleans its cache.
+- **No log2ram.** It trades SD writes for losing logs exactly when a crash needs them.
+- **No automatic `pihole -up`.** A bad Pi-hole release is something to watch happen; that belongs in alerting.
+
+### Phase 4 as-built — 2026-09-23
+
+Completed and verified. Deviations from the plan as written:
+
+| Step | What actually happened |
+| --- | --- |
+| 4.1 | Nebula Sync **v0.11.2** (MIT, one primary maintainer, last push 2026-09-03), `linux_arm64` binary on pihole1, checksum `OK`. Pre-sync `pihole.toml` diff was **empty** (200 lines each, one `127.0.0.1#5335` upstream each), so a full sync had nothing pihole2-specific to overwrite. `app_sudo` set on both, FTL restarted, `0.0.0.0:53` confirmed on both. |
+| 4.1 | First run clean. pihole2's `chk_dns` failed for 3 seconds during the import (10:30:26–10:30:29) and it stayed BACKUP. **FTL's PID didn't change** (4084 before and after), although the health check saw it go down. The Teleporter import restarts FTL in place, so a PID comparison can't detect it. |
+| 4.1 | The original verification used `pihole-FTL --config` **without `sudo`** and printed defaults (`LOCAL`, `false`) with a permission warning. Re-run with `sudo`: `false` / `ALL` / `true`. Corrected above. |
+| 4.1 | Second run clean: the replica's app password survives the import. The first run under the systemd unit (DynamicUser) was clean too. Timer enabled, first scheduled run 12:15. |
+| 4.1 | Initially ran with `RUN_GRAVITY=true`; switched to `false` the same session (see 4.4 reasoning). The confirming run had no `Running gravity...` stage. |
+| 4.2 | Pre-cutover check: pihole1 held `.2`, main LAN resolved through the VIP, and **the first IoT query timed out** (see below). Cutover held until that was diagnosed. |
+| 4.2 | Main LAN cut over, then IoT. `getpacket` showed `{192.168.1.2}` on both (`192.168.1.228` main LAN, `192.168.16.192` IoT). By 11:10 real clients on both networks were querying pihole1. The Mac's `nslookup` initially went through Tailscale and came back unfiltered; ten minutes later `doubleclick.net` returned `0.0.0.0` through the same path, so MagicDNS forwards to Pi-hole once it picks up the new DHCP DNS. |
+| 4.3 | Retry-storm clients: **none seen yet** at the first look (their leases hadn't renewed). Still an open observation. |
+| 4.3 | Final failover, IoT client, Wi-Fi only: stop 11:24:22 → priority `150 → 90` at 11:24:36 → BACKUP 11:24:39 → answers resume 11:24:41 (**~17 s gap**: 14 s to detect by design plus 3 s to hand over). Start 11:25:09 → MASTER 11:25:20, **zero gap on failback**. pihole2 served a real IoT client (`.16.254`) during the window. |
+| 4.4 | Journal cap applied on both (8 MB on pihole1, 2.9 MB on pihole2 at the time). Auto-reboot 03:30 on pihole2, 04:30 on pihole1, confirmed by `apt-config dump`. |
+
+**The Phase 3 "stale ARP" watch item reproduced, and turned out to be something else.** Traceable probes (unique names under `.test`, which FTL answers itself instantly as `config … is NXDOMAIN`, so no upstream latency is involved) from the IoT laptop:
+
+- **40 probes to the VIP, 7 timed out, and all 40 appeared in pihole1's log.** Nothing was lost on the way in.
+- Probes alternating `.2` / `.129` / `1.1.1.1`: 2/30, 2/30 and **3/30** timeouts. **The loss was the same for a public resolver that never touches the Pi-holes.**
+- `tcpdump` on pihole1 showed every lost query **answered within ~1.5 ms from the correct source address** (`.2` for VIP queries, `.129` for direct ones).
+- There was no VIP transition anywhere near the first occurrence.
+
+Conclusion: replies are lost somewhere between the gateway and the IoT client. The problem isn't the Pi-holes, keepalived, the VIP or ARP. `garp_master_refresh` was **not** applied. Caveat: the laptop was **dual-homed** during those probes (Wi-Fi on IoT plus `en5` wired on the main LAN), so retest the loss rate on Wi-Fi only before chasing it. It's captured in `ideas.md`, together with the retry-storm clients, since devices that lose replies retry.
+
+**Ground rule, retired:** UniFi DHCP now points at `192.168.1.2` on both networks. Rollback, if ever needed: `9.9.9.11`.
 
 ## After the rebuild
 
 ### Do these while you're still in it
 
-- **Teleporter backup on both nodes** — `pihole -a -t`, then copy the files off the Pis
-- **Clone the SSD and the pihole2 card** to image files on the Mac. This is the single highest-value safeguard: recovery becomes a 10-minute re-flash instead of a rebuild.
-- **Update the dashboards** — homelab-status `index.html` and the life-dashboard entry, reflecting the role swap
+- **Clone the SSD and the pihole2 card** to image files on the Mac. This is the single highest-value safeguard: recovery becomes a 10-minute re-flash instead of a rebuild. Pulling pihole1's SSD is itself a real failover now, and the house stays up on pihole2.
+- **Teleporter backup on both nodes.** *(Corrected 2026-09-23 — `pihole -a -t` is the v5 command.)* On v6, run `sudo pihole-FTL --teleporter` in a scratch directory, then copy the zip off the Pi. It holds settings and lists only; the image is the whole-machine backup.
+- ~~**Update the dashboards**~~ Done 2026-09-23: homelab-status `index.html` and the life-dashboard entry.
 
 ### Check back in a week
 
@@ -588,10 +754,14 @@ If the September fixes still haven't landed via apt, that's worth a look. unatte
 
 ### Still open after this
 
-- **NUT / UPS clean shutdown** — captured in `ideas.md`, gated on whether the UPS has a USB data port
-- **IoT retry storm** — five clients, revisit once DNS has been stable a few days
-- **IPv6 VIP** — deferred from before, still deferred
-- **Deadbox card** — the second Max Endurance card is for that build, whenever you get back to it
+- **Alerts via ntfy:** Nebula Sync's failure webhook, keepalived state changes and a daily disk/update/reboot check. Design is in `ideas.md`; build it in its own session with a test of each alert.
+- **NUT / UPS clean shutdown:** captured in `ideas.md`, gated on whether the UPS has a USB data port
+- **IoT retry storm:** five clients, revisit once DNS has been stable a few days
+- **IoT reply loss:** ~1 in 10 replies lost to an IoT client (see the Phase 4 as-built). Retest on Wi-Fi only first.
+- **DS3231 RTCs:** still not ordered
+- **IPv6 VIP:** deferred from before, still deferred
+- **Pause tool (`:8080`):** only exists on the old SD cards; not rebuilt
+- **Deadbox card:** the second Max Endurance card is for that build, whenever you get back to it
 
 ## Reference — gotchas, collected
 
@@ -604,6 +774,10 @@ Everything that has cost time before, in one place.
 - Only one `127.0.0.1#5335` entry in `dns.upstreams`. Duplicates have crept in before.
 - After a WAN outage, `sudo systemctl restart unbound` clears cached upstream failures.
 - `dns.listeningMode ALL` does not take effect until **pihole-FTL restarts**. Before that, FTL silently drops off-subnet queries — no error, just a timeout — which looks exactly like a VLAN firewall block. Always restart FTL and confirm `0.0.0.0:53` in `ss -tulnp` before concluding the network is at fault.
+
+- `pihole-FTL --config <key>` **without `sudo`** can't read `pihole.toml` and prints the **built-in default** (e.g. `LOCAL`), with only a warning above it. Always use `sudo`.
+- Make Pi-hole settings changes on **pihole1 only**. Nebula Sync does a full Teleporter import, so anything changed on pihole2 is overwritten at the next sync.
+- A Teleporter import restarts FTL **in place**: the PID doesn't change. Use the keepalived `chk_dns` log or `ss`, not the PID, to tell whether FTL restarted.
 
 **Addressing and keepalived**
 
@@ -622,5 +796,8 @@ Everything that has cost time before, in one place.
 **Diagnostics**
 
 - Heavy query rates can fill FTL capacity and make `dig +short` return empty, which looks like a resolver failure but isn't.
+- On the Mac, `nslookup` goes through **Tailscale MagicDNS** (`100.100.100.100`), not straight to what DHCP handed out. Check DHCP's answer with `ipconfig getpacket en0`.
+- A laptop with a wired `en5` on the main LAN **plus** Wi-Fi on IoT routes `192.168.1.x` over the wire. Unplug it, and check `route -n get 192.168.1.2`, before any IoT test.
+- `.test` names are answered by FTL itself (`config … is NXDOMAIN`), instantly and without touching Unbound, which makes them ideal traceable probes. A loss seen on a `1.1.1.1` control too isn't a Pi-hole problem.
 - Ping working while SSH is refused usually means a hung system, often a failing boot device.
 - Cold boots expose latent config problems that a running system hides. If something changes, reboot and confirm it survives.

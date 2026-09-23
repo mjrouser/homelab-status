@@ -7,6 +7,39 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## Pi-hole Alerts via ntfy
+*Added: 2026-09-23*
+
+Get a push notification when the Pi-hole pair needs attention, instead of finding out when something stops resolving. Failover hides a dead node by design, so without alerts pihole1 could be down for weeks with nobody noticing.
+
+**Three sources, one ntfy topic:**
+1. **Nebula Sync failure webhook.** Two lines in `/etc/nebula-sync/nebula-sync.env` on pihole1 (`WEBHOOK_SYNC_FAILURE_URL` / `_BODY`). Fires when a sync fails.
+2. **keepalived notify script.** Pings on any MASTER/BACKUP/FAULT transition, which is the "a node went down" alert. It notifies only; the old v1 notify script that restarted FTL is not coming back (Phase 3 proved it unnecessary).
+3. **Daily check on each node,** via a systemd timer. It pings **only when something is wrong**: disk above 80%, `/var/run/reboot-required` present past the scheduled reboot, a Pi-hole update available (`pihole -v` vs latest), or `vcgencmd get_throttled` non-zero on the Pi 4.
+
+**Security:** on public ntfy.sh the topic name works as a password. Keep it in root-only files on the nodes (same pattern as the Nebula Sync env file) and never in this repo or on the dashboard.
+
+**Testing:** make each alert fire once on purpose. Break a sync password, stop FTL on pihole1, and fake a full-disk threshold. The Phase 3 lesson was that a check you haven't watched fail isn't trusted.
+
+**Status:** Designed, not built. A short session of its own. Ties in with the Spotify project's ntfy setup.
+
+---
+
+## IoT VLAN Reply Loss
+*Added: 2026-09-23*
+
+During the Pi-hole Phase 4 cutover, an IoT-VLAN laptop lost roughly **1 in 10 DNS replies**, to the Pi-hole VIP, to pihole1 directly **and to 1.1.1.1** alike. Packet capture on pihole1 showed every lost query arriving and being answered within ~1.5 ms, so the replies are lost somewhere between the UniFi gateway and the client. It isn't the Pi-holes. Details are in the runbook's Phase 4 as-built.
+
+**Caveat first:** the laptop was dual-homed during the test (Wi-Fi on IoT plus a wired `en5` on the main LAN). Retest on Wi-Fi only before believing the number.
+
+**If it holds up:** check IoT SSID settings (2.4 GHz only? minimum data rates, band steering, DTIM or power-save related options), the AP's channel utilisation, and whether a wired IoT client shows the same loss.
+
+**Possible link:** the five IoT clients that were retry-storming (192.168.16.25, .27, .28, .29, .164). Devices that lose replies retry.
+
+**Status:** Observation. Not blocking; real clients retry past a single lost packet.
+
+---
+
 ## Untrusted Device VLAN — Isolate Third-Party Telemetry
 *Added: 2026-09-19*
 
@@ -68,7 +101,9 @@ Use Network UPS Tools (NUT) so the rack UPS can tell the Pis to shut down cleanl
 
 **Status:** Idea. Do after the Pi-hole rebuild, not before.
 
-**Related:** Pi-hole rebuild (Kingston A400 SSD for pihole2, SanDisk Max Endurance card for pihole1).
+**Update 2026-09-23:** the rack PDU and the Pis are on the UPS's battery-backed outlets. The September outage lasted **92 hours**, so the nodes died hard when the battery ran out, which is exactly the case NUT exists for. Still to check: the battery self-test and the USB data port.
+
+**Related:** Pi-hole rebuild (Kingston A400 SSD for pihole1, SanDisk Max Endurance card for pihole2).
 
 ---
 
@@ -82,6 +117,8 @@ Set up Tailscale (WireGuard-based mesh VPN) for secure remote access to the home
 - Using PiHole as the tailnet DNS server → ad-blocking on every device, everywhere, including cellular
 - Subnet routing to reach the whole LAN through one node
 - Low setup overhead: single binary per device, free tier covers a personal homelab
+
+**Note 2026-09-23:** Tailscale is on the MacBook with MagicDNS active (`100.100.100.100`). It forwards ordinary lookups to the DHCP-provided DNS, so Pi-hole filtering does reach the laptop (verified: `doubleclick.net` → `0.0.0.0`). It can lag briefly after a lease renew.
 
 ---
 
@@ -315,15 +352,16 @@ A phased build-out of homelab services and smart home infrastructure using exist
 **Smart home north star:** Home Assistant as the hub for everything. Lutron Caseta, Zigbee devices, and eventually Z-wave all feeding into it. Meross WiFi plugs to be replaced with Zigbee/Z-wave over time. Nest thermostat to be replaced (decision TBD).
 
 **DNS/networking plan:**
-- Pi 3B: PiHole v6 + Unbound primary — live ✓
-- Pi 4: PiHole v6 + Unbound replica — live ✓
-- Nebula Sync (Docker on Pi 3B): hourly primary → replica config sync — live ✓
-- Keepalived: VIP 192.168.1.2 configured, failover tested and confirmed ✓
-- Unifi DNS updated to VIP on main VLAN and IoT VLAN ✓
-- PiHole pause tool: single-page HTML app served by Python/systemd on Pi 3B at http://192.168.1.129:8080, pauses both nodes simultaneously with configurable duration (1/5/10/30 min) and Resume Now button ✓
-- Note: always make blocklist/config changes on primary (192.168.1.129) — Nebula Sync is one-directional
+*(Rebuilt September 2026 with the roles swapped. See docs/pihole-rebuild-runbook.md.)*
+- Pi 4 + SSD: pihole1, PiHole v6 + Unbound primary (192.168.1.129) — live ✓
+- Pi 3B + Max Endurance microSD: pihole2, PiHole v6 + Unbound backup (192.168.1.13) — live ✓
+- Nebula Sync (binary + systemd timer on pihole1): every 6h, pihole1 → pihole2 — live ✓
+- Keepalived: VIP 192.168.1.2 with a DNS health check, failover verified from IoT with live traffic ✓
+- UniFi DHCP DNS → VIP on main LAN and IoT VLAN (cut over 2026-09-23) ✓
+- PiHole pause tool (:8080): **not rebuilt**. It only exists on the old SD cards.
+- Note: always make blocklist/config changes on the primary (192.168.1.129). Nebula Sync is one-directional and overwrites pihole2.
 
-**Status:** Fully complete and operational. IPv6 VIP not yet configured — see separate entry below.
+**Status:** Operational after the rebuild. Open: disk images, ntfy alerts, IPv6 VIP (see separate entries).
 
 ---
 
@@ -344,7 +382,7 @@ A Python script that runs at 6am daily (via cron on Raspberry Pi) and creates a 
 ## Hardware RTC Module — Pi 3B Clock Persistence
 *Added: 2026-07-07*
 
-Both PiHole Pi 3B nodes (pihole1, pihole2) lack a battery-backed clock. After a 4+ day power outage, both booted with stale clocks, causing Unbound DNSSEC validation to reject all signed responses as not-yet-valid → SERVFAIL on every query → whole network DNS down. Manual `date -s` on both nodes broke the deadlock. fake-hwclock only covers short outages (stale-by-days still fails DNSSEC), so a hardware RTC is the real fix.
+Both PiHole nodes lack a battery-backed clock (after the September 2026 rebuild: pihole1 = Pi 4, pihole2 = Pi 3B; neither has an RTC). After a 4+ day power outage, both booted with stale clocks, causing Unbound DNSSEC validation to reject all signed responses as not-yet-valid → SERVFAIL on every query → whole network DNS down. Manual `date -s` on both nodes broke the deadlock. fake-hwclock only covers short outages (stale-by-days still fails DNSSEC), so a hardware RTC is the real fix.
 
 **What's needed:**
 1. **Find/buy** — DS3231 RTC module (~$5, coin-cell backed, I2C). One per node = 2 units. Verify battery included (CR2032 or LIR2032).
