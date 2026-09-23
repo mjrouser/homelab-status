@@ -392,70 +392,152 @@ This is the gap you identified: keepalived watches whether a node is *alive*, no
 
 ```
 #!/bin/bash
-dig +short +time=2 +tries=1 @127.0.0.1 pi.hole | grep -q . || exit 1
+# dns_check.sh — keepalived health check.
+# Exits 0 only if the local pihole-FTL returns an IPv4 answer for pi.hole.
+answer=$(dig +short +time=2 +tries=1 @127.0.0.1 pi.hole A) || exit 1
+echo "$answer" | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' || exit 1
 exit 0
 ```
 
+*(Corrected 2026-09-23. The original check was `dig ... | grep -q .`, and it **passed with FTL stopped**. dig on trixie prints its failures to stdout even with `+short` (`;; communications error to 127.0.0.1#53: connection refused`, `;; no servers could be reached`, exit 9), so "any output" matched the error text. The check now needs both a zero exit from dig **and** an answer that looks like an IPv4 address.)*
+
 ```
-sudo chmod +x /usr/local/bin/dns_check.sh
-/usr/local/bin/dns_check.sh; echo $?     # expect 0
+sudo chmod 755 /usr/local/bin/dns_check.sh
+ls -l /usr/local/bin/dns_check.sh          # root root, -rwxr-xr-x
+/usr/local/bin/dns_check.sh; echo $?       # expect 0
+```
+
+**Also test that it fails.** Run this on a node that isn't serving the network. A check that has never been seen failing hasn't been tested:
+
+```
+sudo systemctl stop pihole-FTL; /usr/local/bin/dns_check.sh; echo $?; sudo systemctl start pihole-FTL   # expect 1
 ```
 
 ### 3.3 keepalived config
 
-In the global block on both nodes:
+Write the full config to `/etc/keepalived/keepalived.conf` on each node. It looks like this on pihole1:
 
 ```
 global_defs {
+    router_id pihole1
     enable_script_security
     script_user root
 }
-```
 
-Without those two lines keepalived silently refuses to run the script — a quiet failure that looks like the check is passing.
-
-The tracking block, on both nodes:
-
-```
 vrrp_script chk_dns {
     script "/usr/local/bin/dns_check.sh"
     interval 5
     timeout 3
     fall 3
     rise 2
-    weight -50
+    weight -60
+}
+
+vrrp_instance PIHOLE {
+    state MASTER
+    interface eth0
+    virtual_router_id 53
+    priority 150
+    advert_int 1
+    unicast_src_ip 192.168.1.129
+    unicast_peer {
+        192.168.1.13
+    }
+    authentication {
+        auth_type PASS
+        auth_pass CHANGEME
+    }
+    virtual_ipaddress {
+        192.168.1.2/24
+    }
+    track_script {
+        chk_dns
+    }
 }
 ```
 
-The instance, with these values differing per node:
+These values differ per node. Everything else is identical:
 
 |  | pihole1 (Pi 4) | pihole2 (Pi 3B) |
 | --- | --- | --- |
+| router_id | pihole1 | pihole2 |
 | state | MASTER | BACKUP |
 | priority | 150 | 100 |
 | unicast_src_ip | 192.168.1.129 | 192.168.1.13 |
 | unicast_peer | 192.168.1.13 | 192.168.1.129 |
 
-Shared across both: same `virtual_router_id`, same auth pass, `virtual_ipaddress 192.168.1.2`, `track_script { chk_dns }`, and the existing notify script that restarts pihole-FTL on MASTER transition.
+`enable_script_security` and `script_user root` in `global_defs` are required. Without those two lines keepalived silently refuses to run the script — a quiet failure that looks like the check is passing.
+
+**Auth pass:** generate it on the Mac with `openssl rand -hex 4` (8 characters, the PASS maximum). Put it into both configs with `sudo sed -i 's/CHANGEME/<value>/' /etc/keepalived/keepalived.conf`. It is never committed here.
 
 Use **unicast** peers rather than multicast — more reliable across UniFi switches.
 
+*(Corrected 2026-09-23: **weight is `-60`, not `-50`.** With `-50`, a pihole1 with failed DNS drops from 150 to 100, which ties pihole2's 100. VRRP breaks a tie by the higher primary IP, and `.129` beats `.13`, so pihole1 would have **kept the VIP with broken DNS**. `-60` drops it to 90. The rule is that primary priority minus weight must be strictly less than the backup's priority. Confirmed in the 3.4 log: `Changing effective priority from 150 to 90` → `received advert from 192.168.1.13 with higher priority 100, ours 90` → `Entering BACKUP STATE`.)*
+
+*(Corrected 2026-09-23: **no notify script.** The original plan reused the old notify script that restarts pihole-FTL on the MASTER transition. That script exists only on the set-aside SD cards. It turned out to be unnecessary: with `listeningMode ALL`, FTL binds `0.0.0.0:53` and answers on the VIP the moment keepalived adds it. Step 3.4 proved this in both directions, including failback, where FTL started **before** the VIP existed on the node.)*
+
+Check the config before starting it:
+
+```
+sudo keepalived --config-test; echo $?     # expect 0
+```
+
+Then start pihole1 first, so it takes the VIP from the start:
+
+```
+sudo systemctl enable --now keepalived
+ip -4 addr show eth0 | grep inet                             # pihole1: .129 and .2; pihole2: .13 only
+sudo journalctl -u keepalived -b --no-pager | tail -15       # want "VRRP_Script(chk_dns) succeeded"
+```
+
+The `chk_dns succeeded` line is the proof that script security is set up right. The Debian package enables the service on install, so once a config exists **keepalived starts on its own at boot**. The `NOTICE: setting config option max_auto_priority...` line is a harmless performance tip.
+
 ### 3.4 Test failover both directions
+
+Baseline:
 
 ```
 dig +short google.com @192.168.1.2          # VIP answers
-ip addr show | grep 192.168.1.2             # on pihole1, VIP present
+ip -4 addr show eth0 | grep inet            # on pihole1, .2 present
 ```
 
-Then force a failover:
+**This test is the whole point of the phase** — it's what proves the health check works, and it's the thing that was silently broken before. Run the full cycle hands-off, **from an IoT VLAN client**, not only the main LAN. IoT traffic reaches the VIP through the UniFi gateway, so it also proves the gateway follows the VIP when it moves.
+
+Tab A, on the IoT client (runs about 2 minutes, then stops):
 
 ```
-sudo systemctl stop pihole-FTL              # on pihole1
-# wait ~20 seconds, then from your Mac:
-dig +short google.com @192.168.1.2          # should still answer, via pihole2
+for i in {1..50}; do printf '%s ' "$(date +%T)"; dig +short +time=1 +tries=1 google.com @192.168.1.2 | head -1; sleep 2; done
 ```
 
-Restart FTL on pihole1 and confirm the VIP comes back. **This test is the whole point of the phase** — it's what proves the health check works, and it's the thing that was silently broken before.
+Tab B, on pihole1, started right after Tab A:
+
+```
+echo "stop  $(date +%T)"; sudo systemctl stop pihole-FTL; sleep 45; sudo systemctl start pihole-FTL; echo "start $(date +%T)"
+```
+
+**Pass:** one gap of about 10–16 seconds just after `stop` (3 failed checks at 5-second intervals), then answers all the way through, including after `start`. The failback costs no gap at all, because pihole2 keeps answering until pihole1 takes over. Afterwards, check with `journalctl -u keepalived` on pihole1 that `Entering MASTER STATE` falls inside the Tab A window. Otherwise the failback wasn't actually observed.
+
+The automated Tab B command replaces doing stop/start by hand. Forgetting the `start` during a manual run produced a confusing double transition in the log.
+
+### Phase 3 as-built — 2026-09-23
+
+Completed and verified. Deviations from the plan as written:
+
+| Step | What actually happened |
+| --- | --- |
+| 3.1 | keepalived **v2.3.3** (03/30,2025) on both nodes. `dig` already present from Phase 1/2. |
+| 3.2 | The original script **passed with FTL stopped** (`exit=0`). Caught only by the negative test, run on pihole2. Cause: dig's error text on stdout. Rewritten as above; after the fix, pihole2 with FTL stopped gave `exit=1`. |
+| 3.3 | Weight corrected to `-60` before it was deployed. `virtual_router_id 53`, VIP `192.168.1.2/24`, no notify script. `--config-test` passed on both. |
+| — | **Nodes moved from the bench to the rack before keepalived was first started.** A clean `poweroff` on pihole2 initially didn't happen (the command never reached the node — `systemctl is-system-running` still said `running`). Re-sent with `ssh -t pihole2admin@192.168.1.13 'sudo poweroff'`. Both nodes cold-booted in the rack. Static IP, Unbound, FTL and keepalived all came up unaided, with pihole1 MASTER holding `.2` and pihole2 BACKUP. |
+| 3.4 | Main LAN: failover and failback both clean. pihole1 log: `150 → 90`, BACKUP about 13 seconds after the first failed check. `90 → 150`, MASTER 3 seconds after recovery. IoT VLAN (hands-off cycle, 10:02–10:04): one 12-second gap on failover, **zero gap on failback**. |
+
+**Unexplained, not reproduced:** the very first IoT → VIP queries, a few minutes after a manual failback at 09:49, **timed out twice**, about 2 minutes apart. Meanwhile `dig @192.168.1.129` from the same client worked. The first `ping 192.168.1.2` afterwards took 74 ms (a fresh ARP), and from then on the VIP answered over UDP and TCP. The leading theory was a stale ARP entry for `.2` on the UniFi gateway, still pointing at pihole2. Two further full cycles watched from IoT showed no such delay, so it's recorded rather than fixed. If it recurs, the likely fix is `garp_master_refresh` in the keepalived instance, which re-announces the VIP periodically. **Watch for it during Phase 4.3.**
+
+**Cross-VLAN prerequisite for Phase 4:** confirmed against the VIP. IoT clients resolve through `192.168.1.2` over UDP and TCP.
+
+**RTC reminder, observed:** after the cold boot, both nodes' journal timestamps started from the time saved at shutdown (about 9 minutes behind) until NTP corrected them. That's harmless at this size; after a long outage it's the DNSSEC failure mode the DS3231 fixes.
+
+**Ground rule held:** UniFi DHCP remained on 9.9.9.11 (Quad9) throughout. The VIP was only ever tested directly.
 
 ## Phase 4 — Nebula Sync and cutover
 
@@ -528,6 +610,8 @@ Everything that has cost time before, in one place.
 - On-device static beats a DHCP reservation for anything keepalived depends on. The Pi is briefly address-less during early boot otherwise.
 - Current Pi OS uses NetworkManager and `nmcli` — not `dhcpcd.conf`.
 - keepalived needs `enable_script_security` and `script_user root` or it won't run the health check, silently.
+- A health-check weight must drop the primary **strictly below** the backup. A tie goes to the higher IP, and `.129` beats `.13`, so a tie means no failover.
+- `dig` prints failures (`;; communications error`, `;; no servers could be reached`) to **stdout**, even with `+short`. Never test "did dig print anything". Check its exit code and the shape of the answer. And always watch a health check fail at least once before trusting it.
 
 **Hardware**
 
