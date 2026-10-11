@@ -361,6 +361,24 @@
         <span class="pill">dotfiles</span>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-top">
+        <span class="card-title">Claude Code subagents — per-type models, no plugin</span>
+        <span class="badge badge-live">Live</span>
+      </div>
+      <div class="check-row">
+        <div class="check-item"><span class="check-dot"></span>Sidequest plugin disabled 2026-10-11 on both machines — too much troubleshooting, and none of its 14 executor profiles had ever run a ticket</div>
+        <div class="check-item"><span class="check-dot"></span>Removed <code>CLAUDE_CODE_SUBAGENT_MODEL</code> override so per-agent <code>model:</code> frontmatter wins; default model now Opus</div>
+        <div class="check-item"><span class="check-dot"></span>Five agents in <code>dotfiles/claude/agents/</code>, linked by <code>install.sh</code>: explorer (Haiku), coder (Sonnet), dependency-checker (Sonnet), investigator (Opus), visual-evaluation (Opus)</div>
+        <div class="check-item"><span class="check-dot"></span>Verified from subagent transcript: explorer served by Haiku</div>
+      </div>
+      <p class="card-next"><strong>Next:</strong> Try visual-evaluation on a front-end repo. Add an Opus <code>coder-hard</code> only if <code>coder</code> struggles twice</p>
+      <div class="pill-row">
+        <span class="pill">subagents</span>
+        <span class="pill">dotfiles</span>
+      </div>
+    </div>
   </section>
 
   <!-- ======================================================
