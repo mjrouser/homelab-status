@@ -243,7 +243,7 @@
 
   <header>
     <h1>Homelab status</h1>
-    <time datetime="2026-10-11">2026-10-11</time>
+    <time datetime="2026-10-24">2026-10-24</time>
   </header>
 
   <!-- ======================================================
@@ -353,6 +353,7 @@
         <div class="check-item"><span class="check-dot"></span>launchd agents on both machines; health check reads launchd's restart counter, not just liveness</div>
         <div class="check-item"><span class="check-dot"></span>Mini "sign in again" loop fixed 2026-10-11 — agent had run unrestarted since Sep 16, and an SSH login landed in the credentials file while the agent reads the keychain</div>
         <div class="check-item"><span class="check-dot"></span>Single copy of the login now (keychain only); <code>claude-login</code> helper in dotfiles unlocks the keychain, logs in, and restarts the agent</div>
+        <div class="check-item"><span class="check-dot"></span>Mini now serves <code>~/repos</code> (was <code>life-dashboard</code>) as of 2026-10-24; both picker entries read "repos", told apart by hostname</div>
       </div>
       <p class="card-next"><strong>Next:</strong> Ongoing — if a sign-in prompt recurs, run <code>claude-login</code> on the Mini and check its err.log first</p>
       <div class="pill-row">
