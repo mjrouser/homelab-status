@@ -355,6 +355,7 @@
         <div class="check-item"><span class="check-dot"></span>Single copy of the login now (keychain only); <code>claude-login</code> helper in dotfiles unlocks the keychain, logs in, and restarts the agent</div>
         <div class="check-item"><span class="check-dot"></span>Mini now serves <code>~/repos</code> (was <code>life-dashboard</code>) as of 2026-10-24; both picker entries read "repos", told apart by hostname</div>
         <div class="check-item"><span class="check-dot"></span>Second Mini agent added 2026-10-25 so <code>life-dashboard</code> keeps its own git-aware picker entry (health check watches it as <code>mini-dash</code>; both Mini agents auto-restart)</div>
+        <div class="check-item"><span class="check-dot"></span>Health check fixed 2026-10-25: crash loops now read as FLAPPING instead of alternating DOWN/RECOVERED (hid the Sep 24–Oct 10 logout loop)</div>
       </div>
       <p class="card-next"><strong>Next:</strong> Ongoing — if a sign-in prompt recurs, run <code>claude-login</code> on the Mini and check its err.log first</p>
       <div class="pill-row">
