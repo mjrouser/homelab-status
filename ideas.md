@@ -7,6 +7,23 @@ Updated collaboratively with Claude. Add anything — half-formed is fine.
 
 <!-- IDEAS GO HERE -->
 
+## Living Room Picture-Rail LEDs
+*Added: 2026-10-26*
+
+Tuck RGB LEDs into the groove of the picture rail that runs just beneath the tall crown molding around the living room perimeter. The light washes indirectly up onto the crown and ceiling, so you see the glow and never the source.
+
+**Likely approach:** COB LED strip (continuous light, no visible dots, which matters for a hidden groove you'll see at a raking angle) controlled by an ESP32 running WLED. WLED has a Home Assistant integration, so scenes and automations can come later without changing the hardware.
+
+**Key unknown:** groove width and depth. That decides the strip: standard 8–12mm, or a 5mm narrow strip if the groove is tight. Everything else waits on this.
+
+**Known complexity:** a full-perimeter run is long enough that voltage drop will dim the far end, so it needs power injection at a couple of points, plus a hidden spot for the PSU.
+
+**First step:** measure the groove and take a phone photo of it.
+
+**Status:** Future / not started.
+
+---
+
 ## Pi-hole Alerts via ntfy
 *Added: 2026-09-23*
 
